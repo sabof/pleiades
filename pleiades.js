@@ -131,7 +131,6 @@ pl.Brush.prototype = {
       (shadowBrush.boundaries[1] +
        shadowBrush.boundaries[3]) / 2
     ];
-    // console.log(shadowBrush.boundaries);
     this._offset = [
       windowCenter[0] - imageCenter[0],
       windowCenter[1] - imageCenter[1]];
@@ -166,6 +165,7 @@ pl.color = {
 };
 
 // -----------------------------------------------------------------------------
+
 pl.ShadowBrush = function() {};
 
 pl.ShadowBrush.prototype = new pl.Brush();
@@ -305,13 +305,13 @@ pl.Generator.prototype = {
       return pl.util.random(thing);
     } else {
       return thing;
-    }
-  },
+    }},
+
   maybeCall: function(thing) {
     return (thing instanceof Function) ?
       thing() :
-      thing;
-  },
+      thing; },
+
   chooseAction: (function() {
     var wheel, wheelLength;
     return function () {
@@ -328,6 +328,7 @@ pl.Generator.prototype = {
       }
       return wheel[pl.util.random(wheelLength)];
     }; } ()),
+
   make: function() {
     var sequences = [],
         random = pl.util.random.bind(pl.util);
@@ -345,8 +346,8 @@ pl.Generator.prototype = {
       sequences.unshift(currentSequence);
     }
     sequences.unshift([[4, sequences[1]]]);
-    return sequences[0];
-  },
+    return sequences[0]; },
+
   makeMove: function(/* optional */ vMin, vMax) {
     vMin = vMin || 5;
     vMax = vMax || 10;
@@ -388,6 +389,7 @@ pl.Generator.prototype = {
           ) } ]; }}};
 
 // -----------------------------------------------------------------------------
+
 var generator,
     sequences,
     brush;
@@ -396,10 +398,6 @@ function init() {
   generator = new pl.Generator();
   brush = new pl.RaphaelBrush();
   brush.init();
-}
-
-function scenario1() {
-  init();
 }
 
 function test_simpleRepeater() {
