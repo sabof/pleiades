@@ -55,9 +55,9 @@ pl.Brush = function() { };
 
 pl.Brush.prototype = {
   constructor: pl.Brush,
-  point: [100, 100],
+  point: [0, 0],
   _offset: [0, 0],
-  zoom: 2,
+  zoom: 3,
   directions: ['up', 'right', 'down', 'left'],
   directionTranslate: function(point, length, direction) {
     var table = [
@@ -71,19 +71,9 @@ pl.Brush.prototype = {
     point[1] += table[index][1] * length;
     return point;
   },
-  boundaries: undefined,
   adjustPoint: function(point) {
     var x = Math.round(this._offset[0] + this.zoom * point[0]),
         y = Math.round(this._offset[1] + this.zoom * point[1]);
-    // FIXME: Move to paintlessBrush
-    if ( ! this.boundaries) {
-      this.boundaries = [x, y, x, y];
-    } else {
-      this.boundaries[0] = Math.min(this.boundaries[0], x);
-      this.boundaries[1] = Math.min(this.boundaries[1], y);
-      this.boundaries[2] = Math.max(this.boundaries[2], x);
-      this.boundaries[3] = Math.max(this.boundaries[3], y);
-    }
     return [x, y];
   },
   line: function(length, direction) {},
@@ -98,10 +88,25 @@ pl.Brush.prototype = {
   drawSequence: function(sequence) {
     var self = this;
     this.boundaries = undefined;
-    brush._offset = [
+    var windowCenter = [
       window.innerWidth / 2,
-      window.innerHeight / 2
-    ];
+      window.innerHeight / 2 ],
+        shadowBrush = new pl.ShadowBrush();
+
+    function shadowWalker(pattern) {
+      pattern.forEach(
+        function(stamp) {
+          if (typeof stamp[0] === 'number') {
+            for (var i = 0; i < stamp[0]; i++) {
+              shadowWalker(stamp[1]);
+            }
+          } else {
+            shadowBrush[stamp[0]]
+              .apply(
+                shadowBrush,
+                stamp.slice(1)
+              ); }}); }
+
     function walker(pattern) {
       pattern.forEach(
         function(stamp) {
@@ -110,13 +115,27 @@ pl.Brush.prototype = {
               walker(stamp[1]);
             }
           } else {
-            // console.log(stamp[0]);
-            // console.log(self[stamp[0]]);
             self[stamp[0]]
               .apply(
                 self,
                 stamp.slice(1)
               ); }}); }
+
+    shadowWalker(sequence[0]);
+    var imageCenter = [
+      (shadowBrush.boundaries[0] +
+       shadowBrush.boundaries[2]) / 2,
+      (shadowBrush.boundaries[1] +
+       shadowBrush.boundaries[3]) / 2
+    ];
+    // console.log(shadowBrush.boundaries);
+    this._offset = [
+      windowCenter[0] - imageCenter[0],
+      windowCenter[1] - imageCenter[1]];
+    walker(sequence[0]);
+    self.point = [0, 0];
+    walker(sequence[0]);
+    self.point = [0, 0];
     walker(sequence[0]);
   },
   init: function() {}
@@ -148,12 +167,30 @@ pl.color = {
 };
 
 // -----------------------------------------------------------------------------
-pl.PaintlessBrush = function() {};
-pl.PaintlessBrush.prototype = new pl.Brush();
-pl.PaintlessBrush.prototype.constructor = pl.RaphaelBrush;
+pl.ShadowBrush = function() {
+  this.point = [0, 0];
+};
+pl.ShadowBrush.prototype = new pl.Brush();
+pl.ShadowBrush.prototype.constructor = pl.Brush;
+pl.ShadowBrush.prototype.boundaries = undefined;
 
-pl.PaintlessBrush.prototype.line = pl.PaintlessBrush.prototype.move;
-pl.PaintlessBrush.prototype.circe = function(radius) {
+pl.ShadowBrush.prototype.adjustPoint = function(point) {
+  var x = Math.round(this._offset[0] + this.zoom * point[0]),
+      y = Math.round(this._offset[1] + this.zoom * point[1]);
+  if ( ! this.boundaries) {
+    this.boundaries = [x, y, x, y];
+  } else {
+    this.boundaries[0] = Math.min(this.boundaries[0], x);
+    this.boundaries[1] = Math.min(this.boundaries[1], y);
+    this.boundaries[2] = Math.max(this.boundaries[2], x);
+    this.boundaries[3] = Math.max(this.boundaries[3], y);
+  }
+  return [x, y];
+};
+
+pl.ShadowBrush.prototype.line = pl.ShadowBrush.prototype.move;
+
+pl.ShadowBrush.prototype.circle = function(radius) {
   var newPoint = ([
     this.point[0] - radius,
     this.point[1] - radius]);
@@ -161,10 +198,32 @@ pl.PaintlessBrush.prototype.circe = function(radius) {
     this.point[0] + radius,
     this.point[1] + radius]);
   this.adjustPoint(newPoint);
+  this.adjustPoint(newPoint2);
+};
+
+pl.ShadowBrush.prototype.rect = function(width, height, style) {
+  var adjOldPoint = this.adjustPoint(this.point),
+      verticalLength = Math.abs(width),
+      verticalDirection = (height > 0) ? 'down' : 'up',
+      horizontalLength = Math.abs(height),
+      horizontalDirection = (width > 0) ? 'right' : 'left';
+
+  this.point = this.directionTranslate(
+    this.point,
+    horizontalLength,
+    horizontalDirection);
+  this.point = this.directionTranslate(
+    this.point,
+    verticalLength,
+    verticalDirection);
+  var adjPoint = this.adjustPoint(this.point);
 };
 
 // -----------------------------------------------------------------------------
-pl.RaphaelBrush = function() {};
+
+pl.RaphaelBrush = function() {
+  this.point = [0, 0];
+};
 // FIXME: Convert to extend
 pl.RaphaelBrush.prototype = new pl.Brush();
 pl.RaphaelBrush.prototype.constructor = pl.RaphaelBrush;
@@ -233,7 +292,7 @@ pl.Generator = function() { };
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 4,
+  depth: 5,
   sequenceLength: 20,
   patternRepeat: 4,
   probablilityTable: {
@@ -286,6 +345,7 @@ pl.Generator.prototype = {
       }
       sequences.unshift(currentSequence);
     }
+    sequences.unshift([[4, sequences[1]]]);
     return sequences;
   },
   makeMove: function(/* optional */ vMin, vMax) {
@@ -305,7 +365,8 @@ pl.Generator.prototype = {
         'rect',
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         (smallStyle ? random(-10, 10) : random(-60, 60)),
-        { 'stroke-width': 2,
+        { 'stroke-width': smallStyle ? 2 : random(3),
+          'stroke-opacity': smallStyle ? 1 : Math.random() * 0.5 + 0.5,
           'fill-opacity': smallStyle ? 1 : Math.random() / 10,
         'fill': pl.color.vary(
           random(['#0000FF',
@@ -346,7 +407,7 @@ function test_simpleRepeater() {
   generator = new pl.Generator();
   sequences = [
     [['line', 30, 'up']],
-    [['rect', 30, 30],
+    [['rect', 30, 30, {'fill' : '#aa0044'}],
      ['line', 10, 'right']]
   ];
   sequences[0].push([4, sequences[1]]);
@@ -383,7 +444,24 @@ function test_directionTranslate() {
   );
 }
 
+function test_centerer() {
+  generator = new pl.Generator();
+  sequences = [
+    [],
+    [['rect', 30, 30, {'fill' : '#aa0044'}],
+     ['line', 10, 'right']]
+  ];
+  sequences[0].push([4, sequences[1]]);
+  brush = new pl.RaphaelBrush();
+  brush.init();
+  brush.drawSequence(sequences);
+}
+
+// test_centerer();
 init();
+if (brush) brush.reset();
+sequences = generator.make();
+brush.drawSequence(sequences);
 
 setInterval(
   function() {
