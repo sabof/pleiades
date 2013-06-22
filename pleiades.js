@@ -59,7 +59,7 @@ pl.Brush.prototype = {
   point: [0, 0],
   _offset: [0, 0],
   zoom: 3,
-  directions: Object.freeze(['up', 'right', 'down', 'left']),
+  directions: ['up', 'right', 'down', 'left'],
   directionTranslate: function(point, length, direction) {
     var table = [
       [0, -1],
@@ -69,8 +69,8 @@ pl.Brush.prototype = {
     ];
     var index = this.directions.indexOf(direction);
     point = [
-      table[index][0] * length,
-      table[index][1] * length
+      point[0] + table[index][0] * length,
+      point[1] + table[index][1] * length
     ];
     return point;
   },
