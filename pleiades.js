@@ -1,6 +1,16 @@
 /*global Raphael*/
 var pl = {};
 
+// Add skeleton(?)
+
+pl.Skeleton = function() { };
+
+pl.Skeleton.prototype = {
+  constructor: pl.Skeleton,
+  brush: null,
+  generator: null
+};
+
 // -----------------------------------------------------------------------------
 
 pl.util = {
@@ -33,26 +43,6 @@ pl.util = {
 
 // -----------------------------------------------------------------------------
 
-pl.Pleiades = function() { };
-
-pl.Pleiades.prototype = {
-  constructor: pl.Pleiades,
-  cycle: function() {
-    function walker(pattern) {
-      pattern.forEach(
-        function(stamp) {
-          if (true) {
-            pl.brush(stamp);
-          } else {
-            walker(stamp);
-          }
-        }); }
-    var pattern = pl.generator.make();
-  }
-};
-
-// -----------------------------------------------------------------------------
-
 pl.Brush = function() { };
 
 pl.Brush.prototype = {
@@ -75,7 +65,25 @@ pl.Brush.prototype = {
       throw new Error('Unknown direction: ' + direction);
     }
   },
-
+  drawSequence: function(sequence) {
+    var self = this;
+    function walker(pattern) {
+      pattern.forEach(
+        function(stamp) {
+          if (typeof stamp[0] === 'number') {
+            for (var i = 0; i < stamp[0]; i++) {
+              walker(stamp[1]);
+            }
+          } else {
+            // console.log(stamp[0]);
+            // console.log(self[stamp[0]]);
+            self[stamp[0]]
+              .apply(
+                pl.brush,
+                stamp.slice(1)
+              ); }}); }
+    walker(sequence[0]);
+  },
   init: function() {}
 };
 
@@ -111,38 +119,66 @@ pl.RaphaelBrush.prototype.line = function(length, direction) {
 
 // -----------------------------------------------------------------------------
 
-pl.generatorParts = {};
-
-pl.generatorParts.makeMove1 = function(/* optional */ vMin, vMax) {
-  vMin = vMin || 5;
-  vMax = vMax || 10;
-  var chance =  pl.util.random(6),
-      result;
-  if (true || chance === 0) {
-    pl.brush.line(
-      pl.util.random(vMin, vMax),
-      pl.util.random('direction')
-    ); }
-};
-
-// -----------------------------------------------------------------------------
-
 pl.Generator = function(brush) {
   this.brush = brush;
 };
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  makeSequence: function() {
-    throw new Error('Not implemented');
+  maxSequences: 5,
+  sequenceLength: 5,
+  patternRepeat: 4,
+  probablilityTable: {
+    line: 1, move: 1
   },
-  makeMove: function() {
-    throw new Error('Not implemented');
-  }
-};
+  chooseAction: (function() {
+    var wheel, wheelLength;
+    return function () {
+      if (wheel === undefined) {
+        wheel = [];
+        var pt = this.probablilityTable;
+        Object.keys(pt)
+          .forEach(function(key) {
+            var weight = pt[key];
+            for (var i = 0; i < weight; i++) {
+              wheel.push(key);
+            }});
+        wheelLength = wheel.length;
+      }
+      return wheel[pl.util.random(wheelLength)];
+    }; } ()),
+  make: function() {
+    var sequences = [];
+    for (var i = 0, iLimit = this.maxSequences; i < iLimit; i++) {
+      var currentSequence = [];
+      for (var j = 0, jLimit = this.sequenceLength; j < jLimit; j++) {
+        currentSequence.push(this.makeMove());
+
+      }
+      if (sequences.length) {
+        currentSequence.splice(
+          pl.util.random(sequences.length),
+          0, [ this.patternRepeat, sequences[0] ]);
+      }
+      sequences.unshift(currentSequence);
+    }
+    return sequences;
+  },
+  makeMove: function(/* optional */ vMin, vMax) {
+    vMin = vMin || 5;
+    vMax = vMax || 10;
+    var action = this.chooseAction();
+    if (action === 'line' || action === 'move') {
+      return [
+        action,
+        pl.util.random(vMin, vMax),
+        pl.util.random('direction')
+      ]; }}};
 
 // -----------------------------------------------------------------------------
 
+var sequences = (new pl.Generator())
+      .make();
 pl.brush = new pl.RaphaelBrush();
 pl.brush.init();
-pl.brush.line(10, 'left');
+pl.brush.drawSequence(sequences);
