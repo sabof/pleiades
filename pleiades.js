@@ -56,7 +56,7 @@ pl.Brush = function() { };
 pl.Brush.prototype = {
   constructor: pl.Brush,
   point: [100, 100],
-  offset: [0, 0],
+  _offset: [0, 0],
   zoom: 2,
   directions: ['up', 'right', 'down', 'left'],
   directionTranslate: function(point, length, direction) {
@@ -71,11 +71,21 @@ pl.Brush.prototype = {
     point[1] += table[index][1] * length;
     return point;
   },
+  boundaries: undefined,
   adjustPoint: function(point) {
-    return [
-      (this.offset[0] + this.zoom * point[0]),
-      (this.offset[1] + this.zoom * point[1])
-    ]; },
+    var x = Math.round(this._offset[0] + this.zoom * point[0]),
+        y = Math.round(this._offset[1] + this.zoom * point[1]);
+    // FIXME: Move to paintlessBrush
+    if ( ! this.boundaries) {
+      this.boundaries = [x, y, x, y];
+    } else {
+      this.boundaries[0] = Math.min(this.boundaries[0], x);
+      this.boundaries[1] = Math.min(this.boundaries[1], y);
+      this.boundaries[2] = Math.max(this.boundaries[2], x);
+      this.boundaries[3] = Math.max(this.boundaries[3], y);
+    }
+    return [x, y];
+  },
   line: function(length, direction) {},
   // Could add a hor, vert format
   move: function(length, direction) {
@@ -87,6 +97,11 @@ pl.Brush.prototype = {
   },
   drawSequence: function(sequence) {
     var self = this;
+    this.boundaries = undefined;
+    brush._offset = [
+      window.innerWidth / 2,
+      window.innerHeight / 2
+    ];
     function walker(pattern) {
       pattern.forEach(
         function(stamp) {
@@ -133,9 +148,23 @@ pl.color = {
 };
 
 // -----------------------------------------------------------------------------
+pl.PaintlessBrush = function() {};
+pl.PaintlessBrush.prototype = new pl.Brush();
+pl.PaintlessBrush.prototype.constructor = pl.RaphaelBrush;
 
+pl.PaintlessBrush.prototype.line = pl.PaintlessBrush.prototype.move;
+pl.PaintlessBrush.prototype.circe = function(radius) {
+  var newPoint = ([
+    this.point[0] - radius,
+    this.point[1] - radius]);
+  var newPoint2 = ([
+    this.point[0] + radius,
+    this.point[1] + radius]);
+  this.adjustPoint(newPoint);
+};
+
+// -----------------------------------------------------------------------------
 pl.RaphaelBrush = function() {};
-
 // FIXME: Convert to extend
 pl.RaphaelBrush.prototype = new pl.Brush();
 pl.RaphaelBrush.prototype.constructor = pl.RaphaelBrush;
@@ -154,8 +183,7 @@ pl.RaphaelBrush.prototype.reset = function() {
 };
 
 pl.RaphaelBrush.prototype.line = function(length, direction, style) {
-  var adjOldPoint = this.adjustPoint(
-    this.point.slice(0));
+  var adjOldPoint = this.adjustPoint(this.point);
   this.move(length, direction);
   var adjPoint = this.adjustPoint(this.point);
   var pathString = (
@@ -270,17 +298,20 @@ pl.Generator.prototype = {
         action,
         random(vMin, vMax),
         random('direction'),
-        { 'stroke-width': 2 }];
+        { 'stroke-width': random(5) }];
     } else if (action === 'rect') {
-      var rectStyle = random(2);
+      var smallStyle = random(2);
       return [
         'rect',
-        (rectStyle ? random(-10, 10) : random(-60, 60)),
-        (rectStyle ? random(-10, 10) : random(-60, 60)),
+        (smallStyle ? random(-10, 10) : random(-60, 60)),
+        (smallStyle ? random(-10, 10) : random(-60, 60)),
         { 'stroke-width': 2,
-          'fill-opacity': rectStyle ? 1 : Math.random() / 10,
-          'fill': pl.color.vary(random(['#0000FF', '#000000', '#FF0000']), 100) }
-      ];
+          'fill-opacity': smallStyle ? 1 : Math.random() / 10,
+        'fill': pl.color.vary(
+          random(['#0000FF',
+                  '#000000',
+                  '#FF0000']),
+          100) } ];
     } else if (action === 'rotate') {
       return ['rotate', !! random(2)];
     } else if (action === 'circle') {
@@ -289,11 +320,12 @@ pl.Generator.prototype = {
         random(10),
         { 'stroke-width': 2,
           'fill-opacity': Math.random(),
-          'fill': pl.color.vary(random(['#0000FF', '#000000', '#FF0000'], 100)
-          ) }
-      ];
-    }
-  }};
+          'fill': pl.color.vary(
+            random(['#0000FF',
+                    '#000000',
+                    '#FF0000'],
+                   100)
+          ) } ]; }}};
 
 // -----------------------------------------------------------------------------
 var generator,
@@ -304,10 +336,6 @@ function init() {
   generator = new pl.Generator();
   brush = new pl.RaphaelBrush();
   brush.init();
-  brush.offset = [
-    window.innerWidth / 2,
-    window.innerHeight / 2
-  ];
 }
 
 function scenario1() {
