@@ -71,6 +71,11 @@ pl.Brush.prototype = {
     point[1] += table[index][1] * length;
     return point;
   },
+  adjustPoint: function(point) {
+    return [
+      (this.offset[0] + this.zoom * point[0]),
+      (this.offset[1] + this.zoom * point[1])
+    ]; },
   line: function(length, direction) {},
   // Could add a hor, vert format
   move: function(length, direction) {
@@ -104,6 +109,31 @@ pl.Brush.prototype = {
 
 // -----------------------------------------------------------------------------
 
+pl.color = {
+  vary: function(color, intensity) {
+    intensity = intensity || 10;
+    var m = color.match(/^#([0-9a-f]{6})$/i)[1];
+    var parsed = [
+      parseInt(m.substr(0,2),16),
+      parseInt(m.substr(2,2),16),
+      parseInt(m.substr(4,2),16)
+    ];
+    var processed = parsed.map(
+      function(channel) {
+        var raw = channel +
+              (pl.util.random(intensity * 2) -
+               intensity),
+            normalized = Math.min(255, Math.max(0, raw));
+        return normalized;
+      });
+    return 'rgb(' + processed[0] + ', ' +
+      processed[1] + ', ' +
+      processed[2] + ')';
+  }
+};
+
+// -----------------------------------------------------------------------------
+
 pl.RaphaelBrush = function() {};
 
 // FIXME: Convert to extend
@@ -124,20 +154,22 @@ pl.RaphaelBrush.prototype.reset = function() {
 };
 
 pl.RaphaelBrush.prototype.line = function(length, direction, style) {
-  var oldPoint = this.point.slice(0);
+  var adjOldPoint = this.adjustPoint(
+    this.point.slice(0));
   this.move(length, direction);
+  var adjPoint = this.adjustPoint(this.point);
   var pathString = (
-    'M' + (this.offset[0] + this.zoom * oldPoint[0]) +
-      ' ' + (this.offset[1] + this.zoom * oldPoint[1]) +
-      'L' + (this.offset[0] + this.zoom * this.point[0]) +
-      ' ' + (this.offset[1] + this.zoom * this.point[1])
+    'M' + adjOldPoint[0] +
+      ' ' + adjOldPoint[1] +
+      'L' + adjPoint[0] +
+      ' ' + adjPoint[1]
   );
   this.paper.path(pathString)
     .attr(style);
 };
 
 pl.RaphaelBrush.prototype.rect = function(width, height, style) {
-  var oldPoint = this.point.slice(0),
+  var adjOldPoint = this.adjustPoint(this.point),
       verticalLength = Math.abs(width),
       verticalDirection = (height > 0) ? 'down' : 'up',
       horizontalLength = Math.abs(height),
@@ -151,13 +183,19 @@ pl.RaphaelBrush.prototype.rect = function(width, height, style) {
     this.point,
     verticalLength,
     verticalDirection);
-
-  var x  = this.offset[0] + this.zoom * Math.min(oldPoint[0], this.point[0]),
-      y  = this.offset[1] + this.zoom * Math.min(oldPoint[1], this.point[1]),
-      x2 = this.offset[0] + this.zoom * Math.max(oldPoint[0], this.point[0]),
-      y2 = this.offset[1] + this.zoom * Math.max(oldPoint[1], this.point[1]);
+  var adjPoint = this.adjustPoint(this.point);
+  var x  = Math.min(adjOldPoint[0], adjPoint[0]),
+      y  = Math.min(adjOldPoint[1], adjPoint[1]),
+      x2 = Math.max(adjOldPoint[0], adjPoint[0]),
+      y2 = Math.max(adjOldPoint[1], adjPoint[1]);
 
   this.paper.rect(x, y, x2 - x, y2 - y)
+    .attr(style);
+};
+
+pl.RaphaelBrush.prototype.circle = function(radius, style) {
+  var adjPoint = this.adjustPoint(this.point);
+  this.paper.circle(adjPoint[0], adjPoint[1], radius)
     .attr(style);
 };
 
@@ -167,13 +205,14 @@ pl.Generator = function() { };
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  maxSequences: 5,
+  depth: 4,
   sequenceLength: 20,
   patternRepeat: 4,
   probablilityTable: {
-    line: 1,
+    line: 2,
     move: 3,
-    rect: 1,
+    rect: 2,
+    circle: 1,
     rotate: 2
   },
   maybeRange: function(thing) {
@@ -206,7 +245,7 @@ pl.Generator.prototype = {
     }; } ()),
   make: function() {
     var sequences = [];
-    for (var i = 0, iLimit = this.maxSequences; i < iLimit; i++) {
+    for (var i = 0, iLimit = this.depth; i < iLimit; i++) {
       var currentSequence = [];
       for (var j = 0, jLimit = this.sequenceLength; j < jLimit; j++) {
         currentSequence.push(this.makeMove());
@@ -233,16 +272,26 @@ pl.Generator.prototype = {
         random('direction'),
         { 'stroke-width': 2 }];
     } else if (action === 'rect') {
+      var rectStyle = random(2);
       return [
         'rect',
-        random(-30, 30),
-        random(-30, 30),
+        (rectStyle ? random(-10, 10) : random(-60, 60)),
+        (rectStyle ? random(-10, 10) : random(-60, 60)),
         { 'stroke-width': 2,
-          'fill-opacity': Math.random(),
-          'fill': random(['blue', 'black', 'red']) }
+          'fill-opacity': rectStyle ? 1 : Math.random() / 10,
+          'fill': pl.color.vary(random(['#0000FF', '#000000', '#FF0000']), 100) }
       ];
     } else if (action === 'rotate') {
       return ['rotate', !! random(2)];
+    } else if (action === 'circle') {
+      return [
+        'circle',
+        random(10),
+        { 'stroke-width': 2,
+          'fill-opacity': Math.random(),
+          'fill': pl.color.vary(random(['#0000FF', '#000000', '#FF0000'], 100)
+          ) }
+      ];
     }
   }};
 
@@ -251,16 +300,18 @@ var generator,
     sequences,
     brush;
 
-function scenario1() {
+function init() {
   generator = new pl.Generator();
-  sequences = generator.make();
   brush = new pl.RaphaelBrush();
   brush.init();
   brush.offset = [
     window.innerWidth / 2,
     window.innerHeight / 2
   ];
-  brush.drawSequence(sequences);
+}
+
+function scenario1() {
+  init();
 }
 
 function test_simpleRepeater() {
@@ -304,9 +355,12 @@ function test_directionTranslate() {
   );
 }
 
+init();
+
 setInterval(
   function() {
     if (brush) brush.reset();
-    scenario1();
+    sequences = generator.make();
+    brush.drawSequence(sequences);
   },
   1000);
