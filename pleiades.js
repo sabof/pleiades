@@ -40,6 +40,7 @@ pl.util = {
         min);
   },
   rotate: function(array, reverse) {
+    array = array.slice(0);
     if (reverse) {
       array.push(array.shift());
     } else {
@@ -58,7 +59,7 @@ pl.Brush.prototype = {
   point: [0, 0],
   _offset: [0, 0],
   zoom: 3,
-  directions: ['up', 'right', 'down', 'left'],
+  directions: Object.freeze(['up', 'right', 'down', 'left']),
   directionTranslate: function(point, length, direction) {
     var table = [
       [0, -1],
@@ -67,8 +68,10 @@ pl.Brush.prototype = {
       [-1, 0]
     ];
     var index = this.directions.indexOf(direction);
-    point[0] += table[index][0] * length;
-    point[1] += table[index][1] * length;
+    point = [
+      table[index][0] * length,
+      table[index][1] * length
+    ];
     return point;
   },
   adjustPoint: function(point) {
@@ -121,7 +124,7 @@ pl.Brush.prototype = {
                 stamp.slice(1)
               ); }}); }
 
-    shadowWalker(sequence[0]);
+    shadowWalker(sequence);
     var imageCenter = [
       (shadowBrush.boundaries[0] +
        shadowBrush.boundaries[2]) / 2,
@@ -132,11 +135,7 @@ pl.Brush.prototype = {
     this._offset = [
       windowCenter[0] - imageCenter[0],
       windowCenter[1] - imageCenter[1]];
-    walker(sequence[0]);
-    self.point = [0, 0];
-    walker(sequence[0]);
-    self.point = [0, 0];
-    walker(sequence[0]);
+    walker(sequence);
   },
   init: function() {}
 };
@@ -167,9 +166,8 @@ pl.color = {
 };
 
 // -----------------------------------------------------------------------------
-pl.ShadowBrush = function() {
-  this.point = [0, 0];
-};
+pl.ShadowBrush = function() {};
+
 pl.ShadowBrush.prototype = new pl.Brush();
 pl.ShadowBrush.prototype.constructor = pl.Brush;
 pl.ShadowBrush.prototype.boundaries = undefined;
@@ -331,7 +329,8 @@ pl.Generator.prototype = {
       return wheel[pl.util.random(wheelLength)];
     }; } ()),
   make: function() {
-    var sequences = [];
+    var sequences = [],
+        random = pl.util.random.bind(pl.util);
     for (var i = 0, iLimit = this.depth; i < iLimit; i++) {
       var currentSequence = [];
       for (var j = 0, jLimit = this.sequenceLength; j < jLimit; j++) {
@@ -341,12 +340,12 @@ pl.Generator.prototype = {
       if (sequences.length) {
         currentSequence.splice(
           pl.util.random(sequences.length),
-          0, [ this.patternRepeat, sequences[0] ]);
+          0, [ 2 + random(2) * 2, sequences[0] ]);
       }
       sequences.unshift(currentSequence);
     }
     sequences.unshift([[4, sequences[1]]]);
-    return sequences;
+    return sequences[0];
   },
   makeMove: function(/* optional */ vMin, vMax) {
     vMin = vMin || 5;
@@ -368,11 +367,11 @@ pl.Generator.prototype = {
         { 'stroke-width': smallStyle ? 2 : random(3),
           'stroke-opacity': smallStyle ? 1 : Math.random() * 0.5 + 0.5,
           'fill-opacity': smallStyle ? 1 : Math.random() / 10,
-        'fill': pl.color.vary(
-          random(['#0000FF',
-                  '#000000',
-                  '#FF0000']),
-          100) } ];
+          'fill': pl.color.vary(
+            random(['#0000FF',
+                    '#000000',
+                    '#FF0000']),
+            100) } ];
     } else if (action === 'rotate') {
       return ['rotate', !! random(2)];
     } else if (action === 'circle') {
@@ -457,16 +456,13 @@ function test_centerer() {
   brush.drawSequence(sequences);
 }
 
-// test_centerer();
 init();
-if (brush) brush.reset();
-sequences = generator.make();
-brush.drawSequence(sequences);
 
-setInterval(
-  function() {
-    if (brush) brush.reset();
-    sequences = generator.make();
-    brush.drawSequence(sequences);
-  },
-  1000);
+function refresh() {
+  if (brush) brush.reset();
+  sequences = generator.make();
+  brush.drawSequence(sequences);
+  setTimeout(refresh, 2000);
+}
+
+refresh();
