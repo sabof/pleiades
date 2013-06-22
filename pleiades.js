@@ -118,6 +118,11 @@ pl.RaphaelBrush.prototype.init = function() {
   );
 };
 
+pl.RaphaelBrush.prototype.reset = function() {
+  this.paper.clear();
+  this.point = [0, 0];
+};
+
 pl.RaphaelBrush.prototype.line = function(length, direction, style) {
   var oldPoint = this.point.slice(0);
   this.move(length, direction);
@@ -162,12 +167,12 @@ pl.Generator = function() { };
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  maxSequences: 3,
+  maxSequences: 5,
   sequenceLength: 20,
   patternRepeat: 4,
   probablilityTable: {
     line: 1,
-    move: 1,
+    move: 3,
     rect: 1,
     rotate: 2
   },
@@ -177,6 +182,11 @@ pl.Generator.prototype = {
     } else {
       return thing;
     }
+  },
+  maybeCall: function(thing) {
+    return (thing instanceof Function) ?
+      thing() :
+      thing;
   },
   chooseAction: (function() {
     var wheel, wheelLength;
@@ -294,4 +304,9 @@ function test_directionTranslate() {
   );
 }
 
-scenario1();
+setInterval(
+  function() {
+    if (brush) brush.reset();
+    scenario1();
+  },
+  1000);
