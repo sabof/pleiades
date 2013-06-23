@@ -54,7 +54,36 @@ pl.util = {
 
 // -----------------------------------------------------------------------------
 
-pl.Brush = function() { };
+pl.color = {
+  vary: function(color, intensity) {
+    intensity = intensity || 10;
+    var m = color.match(/^#([0-9a-f]{6})$/i)[1];
+    var parsed = [
+      parseInt(m.substr(0,2),16),
+      parseInt(m.substr(2,2),16),
+      parseInt(m.substr(4,2),16)
+    ];
+    var processed = parsed.map(
+      function(channel) {
+        var raw = channel +
+              (pl.util.random(intensity * 2) -
+               intensity),
+            normalized = Math.min(255, Math.max(0, raw));
+        return normalized;
+      });
+    return 'rgb(' + processed[0] + ', ' +
+      processed[1] + ', ' +
+      processed[2] + ')';
+  }
+};
+
+// -----------------------------------------------------------------------------
+
+pl.Brush = function(shadowBrush) {
+  if (shadowBrush) {
+    this.shadowBrush = shadowBrush;
+  }
+};
 
 pl.Brush.prototype = {
   constructor: pl.Brush,
@@ -62,6 +91,8 @@ pl.Brush.prototype = {
   _offset: Object.freeze([0, 0]),
   zoom: 3,
   directions: Object.freeze(['up', 'right', 'down', 'left']),
+
+  reset: function() {},
 
   directionTranslate: function(point, length, direction) {
     var table = [
@@ -100,7 +131,6 @@ pl.Brush.prototype = {
         windowCenter = [
       window.innerWidth / 2,
       window.innerHeight / 2 ],
-        shadowBrush = new pl.ShadowBrush(),
         imageCenter;
 
     function shadowWalker(pattern) {
@@ -111,9 +141,9 @@ pl.Brush.prototype = {
               shadowWalker(stamp[1]);
             }
           } else {
-            shadowBrush[stamp[0]]
+            self.shadowBrush[stamp[0]]
               .apply(
-                shadowBrush,
+                self.shadowBrush,
                 stamp.slice(1)
               ); }}); }
     function walker(pattern) {
@@ -132,12 +162,16 @@ pl.Brush.prototype = {
 
     this.reset();
     this.boundaries = undefined;
+    this.shadowBrush = this.shadowBrush ||
+      new pl.ShadowBrush();
+    this.shadowBrush.reset();
+    this.shadowBrush.boundaries = undefined;
     shadowWalker(sequence);
     imageCenter = [
-      (shadowBrush.boundaries[0] +
-       shadowBrush.boundaries[2]) / 2,
-      (shadowBrush.boundaries[1] +
-       shadowBrush.boundaries[3]) / 2
+      (this.shadowBrush.boundaries[0] +
+       this.shadowBrush.boundaries[2]) / 2,
+      (this.shadowBrush.boundaries[1] +
+       this.shadowBrush.boundaries[3]) / 2
     ];
     this._offset = [
       windowCenter[0] - imageCenter[0],
@@ -149,37 +183,16 @@ pl.Brush.prototype = {
 
 // -----------------------------------------------------------------------------
 
-pl.color = {
-  vary: function(color, intensity) {
-    intensity = intensity || 10;
-    var m = color.match(/^#([0-9a-f]{6})$/i)[1];
-    var parsed = [
-      parseInt(m.substr(0,2),16),
-      parseInt(m.substr(2,2),16),
-      parseInt(m.substr(4,2),16)
-    ];
-    var processed = parsed.map(
-      function(channel) {
-        var raw = channel +
-              (pl.util.random(intensity * 2) -
-               intensity),
-            normalized = Math.min(255, Math.max(0, raw));
-        return normalized;
-      });
-    return 'rgb(' + processed[0] + ', ' +
-      processed[1] + ', ' +
-      processed[2] + ')';
-  }
-};
-
-// -----------------------------------------------------------------------------
-
 pl.ShadowBrush = function() {};
 
 pl.ShadowBrush.prototype = pl.util.extend(
   new pl.Brush(),
   {constructor: pl.ShadowBrush,
    boundaries: undefined,
+
+   reset: function() {
+     this.point = [0, 0];
+   },
 
    adjustPoint: function(point) {
      var x = Math.round(this._offset[0] + this.zoom * point[0]),
@@ -300,13 +313,13 @@ pl.RaphaelBrush.prototype = pl.util.extend(
 
 // -----------------------------------------------------------------------------
 
-pl.Generator = function() { };
+pl.Generator = function() {};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
   depth: 5,
-  sequenceLength: 20,
-  patternRepeat: 4,
+  sequenceLength: 5,
+  patternRepeat: 25,
   probablilityTable: {
     line: 2,
     move: 3,
@@ -360,8 +373,7 @@ pl.Generator.prototype = {
       }
       sequences.unshift(currentSequence);
     }
-    sequences.unshift([[4, sequences[1]]]);
-    return sequences[0];
+    return [[4, sequences[0]]];
   },
 
   makeMove: function() {
@@ -380,7 +392,7 @@ pl.Generator.prototype = {
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         { 'stroke-width': smallStyle ? 2 : random(3),
-          'stroke-opacity': smallStyle ? 1 : Math.random() * 0.5 + 0.5,
+          'stroke-opacity': smallStyle ? 1 : Math.random() * 0.5 + 0.3,
           'fill-opacity': smallStyle ? 1 : Math.random() / 10,
           'fill': pl.color.vary(
             random(['#0000FF',
