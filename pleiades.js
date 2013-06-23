@@ -1,16 +1,6 @@
 /*global Raphael*/
 var pl = {};
 
-// Add skeleton(?)
-
-pl.Skeleton = function() { };
-
-pl.Skeleton.prototype = {
-  constructor: pl.Skeleton,
-  brush: null,
-  generator: null
-};
-
 // -----------------------------------------------------------------------------
 
 pl.util = {
@@ -39,7 +29,8 @@ pl.util = {
           (max - min)) +
         min);
   },
-  rotate: function(array, reverse) {
+
+  rotateArray: function(array, reverse) {
     array = array.slice(0);
     if (reverse) {
       array.push(array.shift());
@@ -47,6 +38,17 @@ pl.util = {
       array.unshift(array.pop());
     }
     return array;
+  },
+
+  extend: function(original) {
+    Array.prototype.slice
+      .call(arguments, 1)
+      .forEach(function(mixin) {
+      Object.keys(mixin).forEach(function(key) {
+        original[key] = mixin[key];
+      });
+    });
+    return original;
   }
 };
 
@@ -56,10 +58,11 @@ pl.Brush = function() { };
 
 pl.Brush.prototype = {
   constructor: pl.Brush,
-  point: [0, 0],
-  _offset: [0, 0],
+  point: Object.freeze([0, 0]),
+  _offset: Object.freeze([0, 0]),
   zoom: 3,
-  directions: ['up', 'right', 'down', 'left'],
+  directions: Object.freeze(['up', 'right', 'down', 'left']),
+
   directionTranslate: function(point, length, direction) {
     var table = [
       [0, -1],
@@ -74,27 +77,31 @@ pl.Brush.prototype = {
     ];
     return point;
   },
+
   adjustPoint: function(point) {
     var x = Math.round(this._offset[0] + this.zoom * point[0]),
         y = Math.round(this._offset[1] + this.zoom * point[1]);
     return [x, y];
   },
+
   line: function(length, direction) {},
   // Could add a hor, vert format
   move: function(length, direction) {
     this.point = this.directionTranslate(
       this.point, length, direction);
   },
+
   rotate: function(reverse) {
-    this.directions = pl.util.rotate(this.directions, reverse);
+    this.directions = pl.util.rotateArray(this.directions, reverse);
   },
+
   drawSequence: function(sequence) {
-    var self = this;
-    this.boundaries = undefined;
-    var windowCenter = [
+    var self = this,
+        windowCenter = [
       window.innerWidth / 2,
       window.innerHeight / 2 ],
-        shadowBrush = new pl.ShadowBrush();
+        shadowBrush = new pl.ShadowBrush(),
+        imageCenter;
 
     function shadowWalker(pattern) {
       pattern.forEach(
@@ -109,7 +116,6 @@ pl.Brush.prototype = {
                 shadowBrush,
                 stamp.slice(1)
               ); }}); }
-
     function walker(pattern) {
       pattern.forEach(
         function(stamp) {
@@ -124,8 +130,10 @@ pl.Brush.prototype = {
                 stamp.slice(1)
               ); }}); }
 
+    this.reset();
+    this.boundaries = undefined;
     shadowWalker(sequence);
-    var imageCenter = [
+    imageCenter = [
       (shadowBrush.boundaries[0] +
        shadowBrush.boundaries[2]) / 2,
       (shadowBrush.boundaries[1] +
@@ -168,121 +176,127 @@ pl.color = {
 
 pl.ShadowBrush = function() {};
 
-pl.ShadowBrush.prototype = new pl.Brush();
-pl.ShadowBrush.prototype.constructor = pl.Brush;
-pl.ShadowBrush.prototype.boundaries = undefined;
+pl.ShadowBrush.prototype = pl.util.extend(
+  new pl.Brush(),
+  {constructor: pl.ShadowBrush,
+   boundaries: undefined,
 
-pl.ShadowBrush.prototype.adjustPoint = function(point) {
-  var x = Math.round(this._offset[0] + this.zoom * point[0]),
-      y = Math.round(this._offset[1] + this.zoom * point[1]);
-  if ( ! this.boundaries) {
-    this.boundaries = [x, y, x, y];
-  } else {
-    this.boundaries[0] = Math.min(this.boundaries[0], x);
-    this.boundaries[1] = Math.min(this.boundaries[1], y);
-    this.boundaries[2] = Math.max(this.boundaries[2], x);
-    this.boundaries[3] = Math.max(this.boundaries[3], y);
-  }
-  return [x, y];
-};
+   adjustPoint: function(point) {
+     var x = Math.round(this._offset[0] + this.zoom * point[0]),
+         y = Math.round(this._offset[1] + this.zoom * point[1]);
+     if ( ! this.boundaries) {
+       this.boundaries = [x, y, x, y];
+     } else {
+       this.boundaries[0] = Math.min(this.boundaries[0], x);
+       this.boundaries[1] = Math.min(this.boundaries[1], y);
+       this.boundaries[2] = Math.max(this.boundaries[2], x);
+       this.boundaries[3] = Math.max(this.boundaries[3], y);
+     }
+     return [x, y];
+   },
+
+   circle: function(radius) {
+     var newPoint = ([
+       this.point[0] - radius,
+       this.point[1] - radius]);
+     var newPoint2 = ([
+       this.point[0] + radius,
+       this.point[1] + radius]);
+     this.adjustPoint(newPoint);
+     this.adjustPoint(newPoint2);
+   },
+
+   rect: function(width, height, style) {
+     var adjOldPoint = this.adjustPoint(this.point),
+         verticalLength = Math.abs(width),
+         verticalDirection = (height > 0) ? 'down' : 'up',
+         horizontalLength = Math.abs(height),
+         horizontalDirection = (width > 0) ? 'right' : 'left';
+     this.point = this.directionTranslate(
+       this.point,
+       horizontalLength,
+       horizontalDirection);
+     this.point = this.directionTranslate(
+       this.point,
+       verticalLength,
+       verticalDirection);
+     var adjPoint = this.adjustPoint(this.point);
+   }
+  });
 
 pl.ShadowBrush.prototype.line = pl.ShadowBrush.prototype.move;
 
-pl.ShadowBrush.prototype.circle = function(radius) {
-  var newPoint = ([
-    this.point[0] - radius,
-    this.point[1] - radius]);
-  var newPoint2 = ([
-    this.point[0] + radius,
-    this.point[1] + radius]);
-  this.adjustPoint(newPoint);
-  this.adjustPoint(newPoint2);
-};
-
-pl.ShadowBrush.prototype.rect = function(width, height, style) {
-  var adjOldPoint = this.adjustPoint(this.point),
-      verticalLength = Math.abs(width),
-      verticalDirection = (height > 0) ? 'down' : 'up',
-      horizontalLength = Math.abs(height),
-      horizontalDirection = (width > 0) ? 'right' : 'left';
-
-  this.point = this.directionTranslate(
-    this.point,
-    horizontalLength,
-    horizontalDirection);
-  this.point = this.directionTranslate(
-    this.point,
-    verticalLength,
-    verticalDirection);
-  var adjPoint = this.adjustPoint(this.point);
-};
-
 // -----------------------------------------------------------------------------
 
-pl.RaphaelBrush = function() {
-  this.point = [0, 0];
-};
-// FIXME: Convert to extend
-pl.RaphaelBrush.prototype = new pl.Brush();
-pl.RaphaelBrush.prototype.constructor = pl.RaphaelBrush;
+pl.RaphaelBrush = function() {};
 
-pl.RaphaelBrush.prototype.init = function() {
-  this.paper = new Raphael(
-    0, 0,
-    window.innerWidth,
-    window.innerHeight
-  );
-};
+pl.RaphaelBrush.prototype = pl.util.extend(
+  new pl.Brush(),
+  {constructor: pl.RaphaelBrush,
 
-pl.RaphaelBrush.prototype.reset = function() {
-  this.paper.clear();
-  this.point = [0, 0];
-};
+   init: function() {
+     this.paper = new Raphael(
+       0, 0,
+       window.innerWidth,
+       window.innerHeight
+     );
+   },
 
-pl.RaphaelBrush.prototype.line = function(length, direction, style) {
-  var adjOldPoint = this.adjustPoint(this.point);
-  this.move(length, direction);
-  var adjPoint = this.adjustPoint(this.point);
-  var pathString = (
-    'M' + adjOldPoint[0] +
-      ' ' + adjOldPoint[1] +
-      'L' + adjPoint[0] +
-      ' ' + adjPoint[1]
-  );
-  this.paper.path(pathString)
-    .attr(style);
-};
+   reset: function() {
+     this.paper.clear();
+     this.paper.setSize(
+       window.innerWidth,
+       window.innerHeight
+     );
+     this.point = [0, 0];
+   },
 
-pl.RaphaelBrush.prototype.rect = function(width, height, style) {
-  var adjOldPoint = this.adjustPoint(this.point),
-      verticalLength = Math.abs(width),
-      verticalDirection = (height > 0) ? 'down' : 'up',
-      horizontalLength = Math.abs(height),
-      horizontalDirection = (width > 0) ? 'right' : 'left';
+   line: function(length, direction, style) {
+     var adjOldPoint = this.adjustPoint(this.point);
+     this.move(length, direction);
+     var adjPoint = this.adjustPoint(this.point);
+     var pathString = (
+       'M' + adjOldPoint[0] +
+         ' ' + adjOldPoint[1] +
+         'L' + adjPoint[0] +
+         ' ' + adjPoint[1]
+     );
+     this.paper.path(pathString)
+       .attr(style);
+   },
 
-  this.point = this.directionTranslate(
-    this.point,
-    horizontalLength,
-    horizontalDirection);
-  this.point = this.directionTranslate(
-    this.point,
-    verticalLength,
-    verticalDirection);
-  var adjPoint = this.adjustPoint(this.point);
-  var x  = Math.min(adjOldPoint[0], adjPoint[0]),
-      y  = Math.min(adjOldPoint[1], adjPoint[1]),
-      x2 = Math.max(adjOldPoint[0], adjPoint[0]),
-      y2 = Math.max(adjOldPoint[1], adjPoint[1]);
+   rect: function(width, height, style) {
+     var adjOldPoint = this.adjustPoint(this.point),
+         verticalLength = Math.abs(width),
+         verticalDirection = (height > 0) ? 'down' : 'up',
+         horizontalLength = Math.abs(height),
+         horizontalDirection = (width > 0) ? 'right' : 'left';
 
-  this.paper.rect(x, y, x2 - x, y2 - y)
-    .attr(style);
-};
+     this.point = this.directionTranslate(
+       this.point,
+       horizontalLength,
+       horizontalDirection);
+     this.point = this.directionTranslate(
+       this.point,
+       verticalLength,
+       verticalDirection);
+     var adjPoint = this.adjustPoint(this.point);
+     var x  = Math.min(adjOldPoint[0], adjPoint[0]),
+         y  = Math.min(adjOldPoint[1], adjPoint[1]),
+         x2 = Math.max(adjOldPoint[0], adjPoint[0]),
+         y2 = Math.max(adjOldPoint[1], adjPoint[1]);
 
-pl.RaphaelBrush.prototype.circle = function(radius, style) {
-  var adjPoint = this.adjustPoint(this.point);
-  this.paper.circle(adjPoint[0], adjPoint[1], radius)
-    .attr(style);
-};
+     this.paper.rect(x, y, x2 - x, y2 - y)
+       .attr(style);
+   },
+
+   circle: function(radius, style) {
+     var adjPoint = this.adjustPoint(this.point);
+     this.paper.circle(adjPoint[0], adjPoint[1], radius)
+       .attr(style);
+   }
+  }
+);
 
 // -----------------------------------------------------------------------------
 
@@ -300,6 +314,7 @@ pl.Generator.prototype = {
     circle: 1,
     rotate: 2
   },
+
   maybeRange: function(thing) {
     if (thing instanceof Array) {
       return pl.util.random(thing);
@@ -346,17 +361,16 @@ pl.Generator.prototype = {
       sequences.unshift(currentSequence);
     }
     sequences.unshift([[4, sequences[1]]]);
-    return sequences[0]; },
+    return sequences[0];
+  },
 
-  makeMove: function(/* optional */ vMin, vMax) {
-    vMin = vMin || 5;
-    vMax = vMax || 10;
+  makeMove: function() {
     var action = this.chooseAction(),
         random = pl.util.random.bind(pl.util);
     if (action === 'line' || action === 'move') {
       return [
         action,
-        random(vMin, vMax),
+        random(5, 10),
         random('direction'),
         { 'stroke-width': random(5) }];
     } else if (action === 'rect') {
@@ -386,81 +400,51 @@ pl.Generator.prototype = {
                     '#000000',
                     '#FF0000'],
                    100)
-          ) } ]; }}};
+          ) } ]; }
+  }
+};
 
 // -----------------------------------------------------------------------------
 
-var generator,
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame    ||
+    function( callback ){
+      window.setTimeout(callback, 1000 / 60);
+    };
+})();
+
+// -----------------------------------------------------------------------------
+
+var generator = new pl.Generator(),
     sequences,
-    brush;
+    brush = new pl.RaphaelBrush();
 
-function init() {
-  generator = new pl.Generator();
-  brush = new pl.RaphaelBrush();
-  brush.init();
-}
+brush.init();
 
-function test_simpleRepeater() {
-  generator = new pl.Generator();
-  sequences = [
-    [['line', 30, 'up']],
-    [['rect', 30, 30, {'fill' : '#aa0044'}],
-     ['line', 10, 'right']]
-  ];
-  sequences[0].push([4, sequences[1]]);
-  brush = new pl.RaphaelBrush();
-  brush.init();
-  brush.drawSequence(sequences);
-}
+var zoomLevel = 0,
+    zoomSpeed = 5;
 
-function test_rotator() {
-  generator = new pl.Generator();
-  sequences = [
-    [['line', 30, 'down'],
-     ['line', 30, 'right']],
-    [['rect', 30, 20],
-     ['rect', 30, 20],
-     ['line', 30, 'right'],
-     ['rotate', true]
-     ]
-  ];
-  sequences[0].push([2, sequences[1]]);
-  brush = new pl.RaphaelBrush();
-  brush.init();
-  brush.drawSequence(sequences);
-}
-
-function test_directionTranslate() {
-  brush = new pl.RaphaelBrush();
-  console.log(
-    [brush.directionTranslate([0,0], 5, 'up'),
-     brush.directionTranslate([0,0], 5, 'right'),
-     brush.directionTranslate([0,0], 5, 'down'),
-     brush.directionTranslate([0,0], 5, 'left')
-    ]
+function zoom() {
+  zoomLevel++;
+  window.requestAnimFrame(zoom);
+  brush.paper.setViewBox(
+    zoomLevel * zoomSpeed,
+    zoomLevel * zoomSpeed,
+    window.innerWidth - zoomLevel * 2 * zoomSpeed,
+    window.innerHeight - zoomLevel * 2 * zoomSpeed,
+    true
   );
 }
 
-function test_centerer() {
-  generator = new pl.Generator();
-  sequences = [
-    [],
-    [['rect', 30, 30, {'fill' : '#aa0044'}],
-     ['line', 10, 'right']]
-  ];
-  sequences[0].push([4, sequences[1]]);
-  brush = new pl.RaphaelBrush();
-  brush.init();
-  brush.drawSequence(sequences);
-}
-
-init();
-
 function refresh() {
-  if (brush) brush.reset();
   sequences = generator.make();
+  zoomLevel = 0;
   brush.drawSequence(sequences);
   setTimeout(refresh, 2000);
 }
 
 refresh();
+// Uncomment on a fast machine
+// zoom();
