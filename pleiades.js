@@ -318,8 +318,7 @@ pl.Generator = function() {};
 pl.Generator.prototype = {
   constructor: pl.Generator,
   depth: 5,
-  sequenceLength: 5,
-  patternRepeat: 25,
+  sequencesLength: 25,
   probablilityTable: {
     line: 2,
     move: 3,
@@ -362,9 +361,8 @@ pl.Generator.prototype = {
         random = pl.util.random.bind(pl.util);
     for (var i = 0, iLimit = this.depth; i < iLimit; i++) {
       var currentSequence = [];
-      for (var j = 0, jLimit = this.sequenceLength; j < jLimit; j++) {
+      for (var j = 0, jLimit = this.sequencesLength; j < jLimit; j++) {
         currentSequence.push(this.makeMove());
-
       }
       if (sequences.length) {
         currentSequence.splice(
@@ -392,7 +390,7 @@ pl.Generator.prototype = {
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         { 'stroke-width': smallStyle ? 2 : random(3),
-          'stroke-opacity': smallStyle ? 1 : random() * 0.5 + 0.3,
+          'stroke-opacity': smallStyle ? 1 : random() * 0.5 + 0.1,
           'fill-opacity': smallStyle ? 1 : random() / 10,
           'fill': pl.color.vary(
             random(['#0000FF',
