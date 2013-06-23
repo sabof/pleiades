@@ -392,8 +392,8 @@ pl.Generator.prototype = {
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         (smallStyle ? random(-10, 10) : random(-60, 60)),
         { 'stroke-width': smallStyle ? 2 : random(3),
-          'stroke-opacity': smallStyle ? 1 : Math.random() * 0.5 + 0.3,
-          'fill-opacity': smallStyle ? 1 : Math.random() / 10,
+          'stroke-opacity': smallStyle ? 1 : random() * 0.5 + 0.3,
+          'fill-opacity': smallStyle ? 1 : random() / 10,
           'fill': pl.color.vary(
             random(['#0000FF',
                     '#000000',
@@ -406,7 +406,7 @@ pl.Generator.prototype = {
         'circle',
         random(10),
         { 'stroke-width': 2,
-          'fill-opacity': Math.random(),
+          'fill-opacity': random(),
           'fill': pl.color.vary(
             random(['#0000FF',
                     '#000000',
