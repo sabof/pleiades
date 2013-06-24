@@ -245,69 +245,69 @@ pl.RaphaelBrush = function() {};
 
 pl.RaphaelBrush.prototype = pl.util.extend(
   new pl.Brush(),
-  {constructor: pl.RaphaelBrush,
+  { constructor: pl.RaphaelBrush,
 
-   init: function() {
-     this.paper = new Raphael(
-       0, 0,
-       window.innerWidth,
-       window.innerHeight
-     );
-   },
+    init: function() {
+      this.paper = new Raphael(
+        0, 0,
+        window.innerWidth,
+        window.innerHeight
+      );
+    },
 
-   reset: function() {
-     this.paper.clear();
-     this.paper.setSize(
-       window.innerWidth,
-       window.innerHeight
-     );
-     this.point = [0, 0];
-   },
+    reset: function() {
+      this.paper.clear();
+      this.paper.setSize(
+        window.innerWidth,
+        window.innerHeight
+      );
+      this.point = [0, 0];
+    },
 
-   line: function(length, direction, style) {
-     var adjOldPoint = this.adjustPoint(this.point);
-     this.move(length, direction);
-     var adjPoint = this.adjustPoint(this.point);
-     var pathString = (
-       'M' + adjOldPoint[0] +
-         ' ' + adjOldPoint[1] +
-         'L' + adjPoint[0] +
-         ' ' + adjPoint[1]
-     );
-     this.paper.path(pathString)
-       .attr(style);
-   },
+    line: function(length, direction, style) {
+      var adjOldPoint = this.adjustPoint(this.point);
+      this.move(length, direction);
+      var adjPoint = this.adjustPoint(this.point);
+      var pathString = (
+        'M' + adjOldPoint[0] +
+          ' ' + adjOldPoint[1] +
+          'L' + adjPoint[0] +
+          ' ' + adjPoint[1]
+      );
+      this.paper.path(pathString)
+        .attr(style);
+    },
 
-   rect: function(width, height, style) {
-     var adjOldPoint = this.adjustPoint(this.point),
-         verticalLength = Math.abs(width),
-         verticalDirection = (height > 0) ? 'down' : 'up',
-         horizontalLength = Math.abs(height),
-         horizontalDirection = (width > 0) ? 'right' : 'left';
+    rect: function(width, height, style) {
+      var adjOldPoint = this.adjustPoint(this.point),
+          verticalLength = Math.abs(width),
+          verticalDirection = (height > 0) ? 'down' : 'up',
+          horizontalLength = Math.abs(height),
+          horizontalDirection = (width > 0) ? 'right' : 'left';
 
-     this.point = this.directionTranslate(
-       this.point,
-       horizontalLength,
-       horizontalDirection);
-     this.point = this.directionTranslate(
-       this.point,
-       verticalLength,
-       verticalDirection);
-     var adjPoint = this.adjustPoint(this.point);
-     var x  = Math.min(adjOldPoint[0], adjPoint[0]),
-         y  = Math.min(adjOldPoint[1], adjPoint[1]),
-         x2 = Math.max(adjOldPoint[0], adjPoint[0]),
-         y2 = Math.max(adjOldPoint[1], adjPoint[1]);
+      this.point = this.directionTranslate(
+        this.point,
+        horizontalLength,
+        horizontalDirection);
+      this.point = this.directionTranslate(
+        this.point,
+        verticalLength,
+        verticalDirection);
+      var adjPoint = this.adjustPoint(this.point);
+      var x  = Math.min(adjOldPoint[0], adjPoint[0]),
+          y  = Math.min(adjOldPoint[1], adjPoint[1]),
+          x2 = Math.max(adjOldPoint[0], adjPoint[0]),
+          y2 = Math.max(adjOldPoint[1], adjPoint[1]);
 
-     this.paper.rect(x, y, x2 - x, y2 - y)
-       .attr(style);
-   },
+      this.paper.rect(x, y, x2 - x, y2 - y)
+        .attr(style);
+    },
 
-   circle: function(radius, style) {
-     var adjPoint = this.adjustPoint(this.point);
-     this.paper.circle(adjPoint[0], adjPoint[1], radius)
-       .attr(style);
-   }
+    circle: function(radius, style) {
+      var adjPoint = this.adjustPoint(this.point);
+      this.paper.circle(adjPoint[0], adjPoint[1], radius)
+        .attr(style);
+    }
   }
 );
 
@@ -317,14 +317,15 @@ pl.Generator = function() {};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 5,
+  depth: 4,
   sequencesLength: 25,
   probablilityTable: {
-    line: 2,
-    move: 3,
-    rect: 2,
-    circle: 1,
-    rotate: 2
+    line: 20,
+    move: 30,
+    rect: 20,
+    circle: 10,
+    rotate: 20,
+    sequencePreset: 1
   },
 
   maybeRange: function(thing) {
@@ -384,21 +385,11 @@ pl.Generator.prototype = {
         random('direction'),
         { 'stroke-width': random(5) }];
     } else if (action === 'rect') {
-      var smallStyle = random(2);
-      return [
-        'rect',
-        (smallStyle ? random(-10, 10) : random(-60, 60)),
-        (smallStyle ? random(-10, 10) : random(-60, 60)),
-        { 'stroke-width': smallStyle ? 2 : random(3),
-          'stroke-opacity': smallStyle ? 1 : random() * 0.5 + 0.1,
-          'fill-opacity': smallStyle ? 1 : random() / 10,
-          'fill': pl.color.vary(
-            random(['#0000FF',
-                    '#000000',
-                    '#FF0000']),
-            100) } ];
+      return pl.rectFactory.make();
     } else if (action === 'rotate') {
       return ['rotate', !! random(2)];
+    } else if (action === 'sequencePreset') {
+      return pl.sequenceFactory.make();
     } else if (action === 'circle') {
       return [
         'circle',
@@ -416,10 +407,124 @@ pl.Generator.prototype = {
 
 // -----------------------------------------------------------------------------
 
+pl.ShapeFactory = function() {};
+
+pl.ShapeFactory.prototype = {
+  constructor: pl.ShapeFactory,
+  recipes: Object.freeze({}),
+  random: pl.util.random.bind(pl.util),
+  make: function(/*optional*/ option) {
+    return this.recipes[option || pl.util.random(Object.keys(this.recipes))]
+      .call(this);
+  },
+  getOptions: function() {
+    return Object.keys(this.recipes);
+  }
+};
+
+
+// -----------------------------------------------------------------------------
+
+pl.rectFactory = pl.util.extend(
+  new pl.ShapeFactory(),
+  { constructor: pl.RectFactory,
+    recipes: {
+      ambient: function() {
+        var random = this.random;
+        return [
+          'rect',
+          random(-60, 60),
+          random(-60, 60),
+          { 'stroke-width': random(3),
+            'stroke-opacity': random() * 0.5 + 0.1,
+            'fill-opacity': random() / 10,
+            'fill': pl.color.vary(
+              random(
+                ['#0000FF',
+                 '#000000',
+                 '#FF0000']),
+              100) } ];
+      },
+      highlight: function() {
+        var random = this.random;
+        return ['rect', random(-10, 10), random(-10, 10),
+                { 'stroke-width': 2,
+                  'stroke-opacity': 1 ,
+                  'fill-opacity': 1,
+                  'fill': pl.color.vary(
+                    this.random(
+                      ['#0000FF',
+                       '#000000',
+                       '#FF0000']),
+                    100) }];
+      }
+    }
+  });
+
+// -----------------------------------------------------------------------------
+
+pl.sequenceFactory = pl.util.extend(
+  new pl.ShapeFactory(),
+  { recipes: {
+    snake: function() {
+      var random = this.random,
+          blank;
+      function makeMove(direction) {
+        var type = blank ? 'line' : random(['line', 'move']);
+        if (type === 'move') blank = true;
+        return [
+          type,
+          random(1, 15),
+          direction,
+          {'stroke-width': random(1, 5)}];
+      }
+
+      var up = makeMove('up'),
+          left = makeMove('left'),
+          right = left.slice(0);
+      right[2] = 'right';
+      return [random(1, 4), [left, up, right, up]];
+    },
+    target: function() {
+      var scale = 4;
+      return [
+        1,
+        [['circle', scale * 1, {'fill': 'black'}],
+         ['circle', scale * 2, {'stroke-width': this.random(2)}]
+        ]];
+    },
+    tree: function() {
+      var random = this.random;
+      var scale = 4;
+      return [
+        1,
+        [['line', random(4, 9),
+          random('direction'),
+          {'stroke-width': random(1, 4)}],
+         ['circle', scale * 2, {'stroke-width': this.random(2)}]
+        ]];
+    },
+    equal: function() {
+      var random = this.random;
+      var horizSegmentLength = random(1, 1),
+          vertSegmentLength = random(1, 15),
+          horiz = random(1, 5),
+          vert = random(1, 5);
+      return [1,
+              [['line', horizSegmentLength, 'left', {'stroke-width': horiz}],
+               ['move', vertSegmentLength, 'up'],
+               ['line', horizSegmentLength, 'right', {'stroke-width': horiz}]
+              ]];
+    }
+  }}
+);
+
+// -----------------------------------------------------------------------------
+
 window.requestAnimFrame = (function(){
-  return  window.requestAnimationFrame       ||
+  return  window.requestAnimationFrame ||
     window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame    ||
+    window.mozRequestAnimationFrame ||
     function( callback ){
       window.setTimeout(callback, 1000 / 60);
     };
@@ -483,12 +588,12 @@ function zoom() {
 }
 
 function refresh() {
+  setTimeout(refresh, 2000);
   if (document.body.className !== 'hidden') {
     sequences = generator.make();
     zoomLevel = 0;
     brush.drawSequence(sequences);
   }
-  setTimeout(refresh, 2000);
 }
 
 refresh();
