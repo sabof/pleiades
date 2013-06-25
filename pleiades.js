@@ -49,6 +49,21 @@ pl.util = {
         });
       });
     return original;
+  },
+
+  makeTicket: function() {
+    var length = 4,
+        stringInitial = Math.floor(
+          Math.random() * 10000000000)
+        .toString(16)
+        .toUpperCase();
+    if (stringInitial.length > length) {
+      return stringInitial.substr(0, length);
+    }
+    while (stringInitial.length < length) {
+      stringInitial = '0' + stringInitial;
+    }
+    return stringInitial;
   }
 };
 
@@ -137,12 +152,6 @@ pl.Brush.prototype = {
       // console.log(pattern);
       pattern.forEach(
         function(stamp) {
-          try {
-            parseInt(typeof stamp[0] === 'number', 10);
-          } catch (error) {
-            console.log(stamp);
-            console.log(pattern);
-          }
           if (typeof stamp[0] === 'number') {
             for (var i = 0; i < stamp[0]; i++) {
               shadowWalker(stamp[1]);
@@ -181,6 +190,14 @@ pl.Brush.prototype = {
       (this.shadowBrush.boundaries[1] +
        this.shadowBrush.boundaries[3]) / 2
     ];
+    // try {
+
+    // } catch (error) {
+    //   if ( ! this.shadowBrush.boundaries[0]) {
+    //     console.log('blank image');
+    //   }
+    //   imageCenter = windowCenter;
+    // }
     this._offset = [
       windowCenter[0] - imageCenter[0],
       windowCenter[1] - imageCenter[1]];
@@ -195,57 +212,63 @@ pl.ShadowBrush = function() {};
 
 pl.ShadowBrush.prototype = pl.util.extend(
   new pl.Brush(),
-  {constructor: pl.ShadowBrush,
-   boundaries: undefined,
+  { constructor: pl.ShadowBrush,
+    boundaries: undefined,
 
-   reset: function() {
-     this.point = [0, 0];
-   },
+    reset: function() {
+      this.point = [0, 0];
+    },
 
-   adjustPoint: function(point) {
-     var x = Math.round(this._offset[0] + this.zoom * point[0]),
-         y = Math.round(this._offset[1] + this.zoom * point[1]);
-     if ( ! this.boundaries) {
-       this.boundaries = [x, y, x, y];
-     } else {
-       this.boundaries[0] = Math.min(this.boundaries[0], x);
-       this.boundaries[1] = Math.min(this.boundaries[1], y);
-       this.boundaries[2] = Math.max(this.boundaries[2], x);
-       this.boundaries[3] = Math.max(this.boundaries[3], y);
-     }
-     return [x, y];
-   },
+    adjustPoint: function(point) {
+      var x = Math.round(this._offset[0] + this.zoom * point[0]),
+          y = Math.round(this._offset[1] + this.zoom * point[1]);
+      if ( ! this.boundaries) {
+        this.boundaries = [x, y, x, y];
+      } else {
+        this.boundaries[0] = Math.min(this.boundaries[0], x);
+        this.boundaries[1] = Math.min(this.boundaries[1], y);
+        this.boundaries[2] = Math.max(this.boundaries[2], x);
+        this.boundaries[3] = Math.max(this.boundaries[3], y);
+      }
+      return [x, y];
+    },
 
-   circle: function(radius) {
-     var newPoint = ([
-       this.point[0] - radius,
-       this.point[1] - radius]);
-     var newPoint2 = ([
-       this.point[0] + radius,
-       this.point[1] + radius]);
-     this.adjustPoint(newPoint);
-     this.adjustPoint(newPoint2);
-   },
+    circle: function(radius) {
+      var newPoint = ([
+        this.point[0] - radius,
+        this.point[1] - radius]);
+      var newPoint2 = ([
+        this.point[0] + radius,
+        this.point[1] + radius]);
+      this.adjustPoint(newPoint);
+      this.adjustPoint(newPoint2);
+    },
 
-   rect: function(width, height, style) {
-     var adjOldPoint = this.adjustPoint(this.point),
-         verticalLength = Math.abs(width),
-         verticalDirection = (height > 0) ? 'down' : 'up',
-         horizontalLength = Math.abs(height),
-         horizontalDirection = (width > 0) ? 'right' : 'left';
-     this.point = this.directionTranslate(
-       this.point,
-       horizontalLength,
-       horizontalDirection);
-     this.point = this.directionTranslate(
-       this.point,
-       verticalLength,
-       verticalDirection);
-     var adjPoint = this.adjustPoint(this.point);
-   }
+    rect: function(width, height, style) {
+      var adjOldPoint = this.adjustPoint(this.point),
+          verticalLength = Math.abs(width),
+          verticalDirection = (height > 0) ? 'down' : 'up',
+          horizontalLength = Math.abs(height),
+          horizontalDirection = (width > 0) ? 'right' : 'left';
+      this.point = this.directionTranslate(
+        this.point,
+        horizontalLength,
+        horizontalDirection);
+      this.point = this.directionTranslate(
+        this.point,
+        verticalLength,
+        verticalDirection);
+      var adjPoint = this.adjustPoint(this.point);
+    },
+
+    line: function(length, direction) {
+      this.adjustPoint(this.point);
+      this.point = this.adjustPoint(
+        this.directionTranslate(
+          this.point, length, direction));
+    }
+
   });
-
-pl.ShadowBrush.prototype.line = pl.ShadowBrush.prototype.move;
 
 // -----------------------------------------------------------------------------
 
@@ -325,8 +348,8 @@ pl.Generator = function() {};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 2,
-  sequencesLength: 2,
+  depth: 3,
+  sequencesLength: 7,
 
   maybeRange: function(thing) {
     if (thing instanceof Array) {
@@ -395,6 +418,7 @@ pl.sequenceFactory = {
 
   recipes: {
     rotate: {
+      probability: 20,
       maxLength: 0,
       func: function() {
         var random = this.random;
@@ -403,6 +427,7 @@ pl.sequenceFactory = {
     },
 
     move: {
+      probability: 30,
       maxLength: 0,
       func: function() {
         var random = this.random;
@@ -415,6 +440,7 @@ pl.sequenceFactory = {
     },
 
     line: {
+      probability: 20,
       maxLength: 1,
       func: function() {
         var random = this.random;
@@ -427,7 +453,7 @@ pl.sequenceFactory = {
     },
 
     circle: {
-      probability: 30,
+      probability: 10,
       maxLength: 1,
       func: function() {
         var random = this.random;
@@ -444,7 +470,8 @@ pl.sequenceFactory = {
             ) } ]; }
     },
 
-    ambient: {
+    ambientRect: {
+      probability: 10,
       maxLength: 1,
       func: function() {
         var random = this.random;
@@ -463,7 +490,8 @@ pl.sequenceFactory = {
               100) } ]; }
     },
 
-    highlight: {
+    highlightRect: {
+      probability: 10,
       maxLength: 1,
       func: function() {
         var random = this.random;
@@ -480,6 +508,7 @@ pl.sequenceFactory = {
     },
 
     snake: {
+      probability: 5,
       func: function() {
         var random = this.random,
             blank;
@@ -506,6 +535,7 @@ pl.sequenceFactory = {
     },
 
     target: {
+      probability: 5,
       func: function() {
         var scale = 4;
         return [
@@ -515,7 +545,8 @@ pl.sequenceFactory = {
           ]]; }
     },
 
-    tree: {
+    racket: {
+      probability: 5,
       func: function() {
         var random = this.random;
         var scale = 4;
@@ -529,6 +560,7 @@ pl.sequenceFactory = {
     },
 
     equal: {
+      probability: 5,
       func: function() {
         var random = this.random;
         var horizSegmentLength = random(1, 1),
@@ -595,6 +627,7 @@ window.requestAnimFrame = (function(){
 
 var generator = new pl.Generator(),
     sequences,
+    ticket,
     brush = new pl.RaphaelBrush();
 
 brush.init();
@@ -617,9 +650,12 @@ function zoom() {
 function refresh() {
   setTimeout(refresh, 2000);
   if (document.body.className !== 'hidden') {
+    ticket = pl.util.makeTicket();
     sequences = generator.make();
     zoomLevel = 0;
     brush.drawSequence(sequences);
+    document.getElementById('ticket-label')
+      .innerHTML = ticket;
   }
 }
 
