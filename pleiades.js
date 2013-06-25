@@ -10,6 +10,14 @@ pl.util = {
     if (min instanceof Array) {
       return min[this.random(min.length)];
     }
+    if (typeof min === 'object') {
+      var wheel = [];
+      Object.keys(min)
+        .forEach(function(key) {
+          for (var i = 0; i < min[key]; i++) {
+            wheel.push(key);
+          }});
+      return this.random(wheel); }
     if (min === 'color') {
       return pl.color.vary(
         this.random(
@@ -446,7 +454,6 @@ pl.sequenceFactory = {
           'move',
           random(5, 10),
           random('direction'),
-          { 'stroke-width': random(5) }
         ]; }
     },
 
@@ -459,8 +466,11 @@ pl.sequenceFactory = {
           'line',
           random(5, 10),
           random('direction'),
-          { 'stroke-width': random(5) }
-        ]; }
+          pl.util.extend(
+            { 'stroke-width': random(1, 5) },
+            random([{ 'stroke-dasharray' : '- ' },
+                    {}])) ];
+      }
     },
 
     circle: {
@@ -526,8 +536,7 @@ pl.sequenceFactory = {
         right[2] = 'right';
         return [
           random(1, 4),
-          [left, up, right, up]
-        ]; }
+          [left, up, right, up] ]; }
     },
 
     target: {
@@ -553,24 +562,7 @@ pl.sequenceFactory = {
             {'stroke-width': random(1, 4)}],
            ['circle', scale * 2, {'stroke-width': this.random(2)}]
           ]]; }
-    },
-
-    equal: {
-      probability: 5,
-      func: function() {
-        var random = this.random;
-        var horizSegmentLength = random(1, 1),
-            vertSegmentLength = random(1, 15),
-            horiz = random(1, 5),
-            vert = random(1, 5);
-        return [
-          1,
-          [['line', horizSegmentLength, 'left', {'stroke-width': horiz}],
-           ['move', vertSegmentLength, 'up'],
-           ['line', horizSegmentLength, 'right', {'stroke-width': horiz}]
-          ]]; }
     }
-
   }
 };
 
@@ -678,8 +670,7 @@ document.getElementById('ticket')
         SeedRandom.seed(ticket);
         sequences = generator.make();
         brush.drawSequence(sequences);
-      }
-    }
+      }}
   });
 
 // (function () {
