@@ -1,4 +1,4 @@
-/*global Raphael*/
+/*global Raphael, SeedRandom*/
 var pl = {};
 
 // -----------------------------------------------------------------------------
@@ -16,7 +16,7 @@ pl.util = {
     }
     if (min === undefined &&
         max === undefined) {
-      return Math.random();
+      return SeedRandom.random();
     }
     if (min !== undefined &&
         max === undefined) {
@@ -25,7 +25,7 @@ pl.util = {
     }
     return (
       Math.floor(
-        Math.random() *
+        SeedRandom.random() *
           (max - min)) +
         min);
   },
@@ -134,6 +134,7 @@ pl.Brush.prototype = {
         imageCenter;
 
     function shadowWalker(pattern) {
+      // console.log(pattern);
       pattern.forEach(
         function(stamp) {
           if (typeof stamp[0] === 'number') {
@@ -318,12 +319,12 @@ pl.Generator = function() {};
 pl.Generator.prototype = {
   constructor: pl.Generator,
   depth: 4,
-  sequencesLength: 25,
+  sequencesLength: 10,
   probablilityTable: {
     line: 20,
     move: 30,
-    rect: 20,
-    circle: 10,
+    // rect: 20,
+    // circle: 10,
     rotate: 20,
     sequencePreset: 1
   },
@@ -363,7 +364,7 @@ pl.Generator.prototype = {
     for (var i = 0, iLimit = this.depth; i < iLimit; i++) {
       var currentSequence = [];
       for (var j = 0, jLimit = this.sequencesLength; j < jLimit; j++) {
-        currentSequence.push(this.makeMove());
+        currentSequence.push(pl.sequenceFactory.make());
       }
       if (sequences.length) {
         currentSequence.splice(
@@ -373,24 +374,49 @@ pl.Generator.prototype = {
       sequences.unshift(currentSequence);
     }
     return [[4, sequences[0]]];
+  }
+};
+
+// -----------------------------------------------------------------------------
+
+pl.sequenceFactory = {
+  random: pl.util.random.bind(pl.util),
+
+  make: function(/*optional*/ option) {
+    return this.recipes[option || pl.util.random(Object.keys(this.recipes))]
+      .call(this);
   },
 
-  makeMove: function() {
-    var action = this.chooseAction(),
-        random = pl.util.random.bind(pl.util);
-    if (action === 'line' || action === 'move') {
+  getOptions: function() {
+    return Object.keys(this.recipes);
+  },
+
+  recipes: {
+    rotate: function() {
+      var random = this.random;
+      return ['rotate', !! random(2)];
+    },
+
+    move: function() {
+      var random = this.random;
       return [
-        action,
+        'move',
         random(5, 10),
         random('direction'),
         { 'stroke-width': random(5) }];
-    } else if (action === 'rect') {
-      return pl.rectFactory.make();
-    } else if (action === 'rotate') {
-      return ['rotate', !! random(2)];
-    } else if (action === 'sequencePreset') {
-      return pl.sequenceFactory.make();
-    } else if (action === 'circle') {
+    },
+    line: function() {
+      var random = this.random;
+      return [
+        'line',
+        random(5, 10),
+        random('direction'),
+        { 'stroke-width': random(5) }
+      ];
+    },
+
+    circle: function() {
+      var random = this.random;
       return [
         'circle',
         random(10),
@@ -401,71 +427,39 @@ pl.Generator.prototype = {
                     '#000000',
                     '#FF0000'],
                    100)
-          ) } ]; }
-  }
-};
+          ) } ];
+    },
+    ambient: function() {
+      var random = this.random;
+      return [
+        'rect',
+        random(-60, 60),
+        random(-60, 60),
+        { 'stroke-width': random(3),
+          'stroke-opacity': random() * 0.5 + 0.1,
+          'fill-opacity': random() / 10,
+          'fill': pl.color.vary(
+            random(
+              ['#0000FF',
+               '#000000',
+               '#FF0000']),
+            100) } ];
+    },
 
-// -----------------------------------------------------------------------------
+    highlight: function() {
+      var random = this.random;
+      return ['rect', random(-10, 10), random(-10, 10),
+              { 'stroke-width': 2,
+                'stroke-opacity': 1 ,
+                'fill-opacity': 1,
+                'fill': pl.color.vary(
+                  this.random(
+                    ['#0000FF',
+                     '#000000',
+                     '#FF0000']),
+                  100) }];
+    },
 
-pl.ShapeFactory = function() {};
-
-pl.ShapeFactory.prototype = {
-  constructor: pl.ShapeFactory,
-  recipes: Object.freeze({}),
-  random: pl.util.random.bind(pl.util),
-  make: function(/*optional*/ option) {
-    return this.recipes[option || pl.util.random(Object.keys(this.recipes))]
-      .call(this);
-  },
-  getOptions: function() {
-    return Object.keys(this.recipes);
-  }
-};
-
-
-// -----------------------------------------------------------------------------
-
-pl.rectFactory = pl.util.extend(
-  new pl.ShapeFactory(),
-  { constructor: pl.RectFactory,
-    recipes: {
-      ambient: function() {
-        var random = this.random;
-        return [
-          'rect',
-          random(-60, 60),
-          random(-60, 60),
-          { 'stroke-width': random(3),
-            'stroke-opacity': random() * 0.5 + 0.1,
-            'fill-opacity': random() / 10,
-            'fill': pl.color.vary(
-              random(
-                ['#0000FF',
-                 '#000000',
-                 '#FF0000']),
-              100) } ];
-      },
-      highlight: function() {
-        var random = this.random;
-        return ['rect', random(-10, 10), random(-10, 10),
-                { 'stroke-width': 2,
-                  'stroke-opacity': 1 ,
-                  'fill-opacity': 1,
-                  'fill': pl.color.vary(
-                    this.random(
-                      ['#0000FF',
-                       '#000000',
-                       '#FF0000']),
-                    100) }];
-      }
-    }
-  });
-
-// -----------------------------------------------------------------------------
-
-pl.sequenceFactory = pl.util.extend(
-  new pl.ShapeFactory(),
-  { recipes: {
     snake: function() {
       var random = this.random,
           blank;
@@ -485,6 +479,7 @@ pl.sequenceFactory = pl.util.extend(
       right[2] = 'right';
       return [random(1, 4), [left, up, right, up]];
     },
+
     target: function() {
       var scale = 4;
       return [
@@ -493,6 +488,7 @@ pl.sequenceFactory = pl.util.extend(
          ['circle', scale * 2, {'stroke-width': this.random(2)}]
         ]];
     },
+
     tree: function() {
       var random = this.random;
       var scale = 4;
@@ -504,6 +500,7 @@ pl.sequenceFactory = pl.util.extend(
          ['circle', scale * 2, {'stroke-width': this.random(2)}]
         ]];
     },
+
     equal: function() {
       var random = this.random;
       var horizSegmentLength = random(1, 1),
@@ -516,8 +513,8 @@ pl.sequenceFactory = pl.util.extend(
                ['line', horizSegmentLength, 'right', {'stroke-width': horiz}]
               ]];
     }
-  }}
-);
+  }
+};
 
 // -----------------------------------------------------------------------------
 
