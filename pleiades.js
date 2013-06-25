@@ -25,8 +25,8 @@ pl.util = {
             ['#0000FF',
              // '#00FF00',
              '#000000',
-             '#FF0000'],
-          100));
+             '#FF0000']),
+        50);
     }
     if (min === 'direction') {
       return this.random(['up', 'down', 'right', 'left']);
@@ -388,7 +388,7 @@ pl.Generator.prototype = {
     for (var i = 0, iL = this.depth; i < iL; i++) {
       var currentSequence = [];
       for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
-        currentSequence.push(pl.sequenceFactory.make());
+        currentSequence.push(pl.stampFactory.make());
       }
       if (sequences.length) {
         currentSequence.splice(
@@ -403,7 +403,7 @@ pl.Generator.prototype = {
 
 // -----------------------------------------------------------------------------
 
-pl.sequenceFactory = {
+pl.stampFactory = {
   random: pl.util.random.bind(pl.util),
 
   makeMake: function() {
@@ -453,7 +453,7 @@ pl.sequenceFactory = {
         return [
           'move',
           random(5, 10),
-          random('direction'),
+          random('direction')
         ]; }
     },
 
@@ -525,7 +525,7 @@ pl.sequenceFactory = {
           if (type === 'move') blank = true;
           return [
             type,
-            random(1, 15),
+            random(3, 15),
             direction,
             {'stroke-width': random(1, 5)}];
         }
@@ -540,7 +540,7 @@ pl.sequenceFactory = {
     },
 
     target: {
-      probability: 3,
+      probability: 1,
       func: function() {
         var scale = 4;
         return [
