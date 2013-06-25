@@ -7,9 +7,18 @@ pl.util = {
   // Assume it's just max/array with one argument.
   // Inclusive, exclusive
   random: function(min, max) {
-    if (typeof min === 'object' &&
-        min.length !== undefined) {
+    if (min instanceof Array) {
       return min[this.random(min.length)];
+    }
+    if (min === 'color') {
+      return pl.color.vary(
+        this.random(
+          max ||
+            ['#0000FF',
+             // '#00FF00',
+             '#000000',
+             '#FF0000'],
+          100));
     }
     if (min === 'direction') {
       return this.random(['up', 'down', 'right', 'left']);
@@ -347,8 +356,8 @@ pl.Generator = function() {};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 3,
-  sequencesLength: 7,
+  depth: 5,
+  sequencesLength: 17,
 
   maybeRange: function(thing) {
     if (thing instanceof Array) {
@@ -452,7 +461,7 @@ pl.sequenceFactory = {
     },
 
     circle: {
-      probability: 10,
+      probability: 5,
       maxLength: 1,
       func: function() {
         var random = this.random;
@@ -461,12 +470,7 @@ pl.sequenceFactory = {
           random(10),
           { 'stroke-width': 2,
             'fill-opacity': random(),
-            'fill': pl.color.vary(
-              random(['#0000FF',
-                      '#000000',
-                      '#FF0000'],
-                     100)
-            ) } ]; }
+            'fill': random('color') } ]; }
     },
 
     ambientRect: {
@@ -481,12 +485,7 @@ pl.sequenceFactory = {
           { 'stroke-width': random(3),
             'stroke-opacity': random() * 0.5 + 0.1,
             'fill-opacity': random() / 10,
-            'fill': pl.color.vary(
-              random(
-                ['#0000FF',
-                 '#000000',
-                 '#FF0000']),
-              100) } ]; }
+            'fill': random('color') } ]; }
     },
 
     highlightRect: {
@@ -498,12 +497,7 @@ pl.sequenceFactory = {
                 { 'stroke-width': 2,
                   'stroke-opacity': 1 ,
                   'fill-opacity': 1,
-                  'fill': pl.color.vary(
-                    this.random(
-                      ['#0000FF',
-                       '#000000',
-                       '#FF0000']),
-                    100) }]; }
+                  'fill': random('color') }]; }
     },
 
     snake: {
@@ -534,7 +528,7 @@ pl.sequenceFactory = {
     },
 
     target: {
-      probability: 5,
+      probability: 3,
       func: function() {
         var scale = 4;
         return [
@@ -545,7 +539,7 @@ pl.sequenceFactory = {
     },
 
     racket: {
-      probability: 5,
+      probability: 3,
       func: function() {
         var random = this.random;
         var scale = 4;
@@ -658,12 +652,12 @@ function refresh() {
   }
 }
 
-(function () {
-  SeedRandom.seed('test');
-  sequences = generator.make();
-  brush.drawSequence(sequences);
-} ());
+// (function () {
+//   SeedRandom.seed('test');
+//   sequences = generator.make();
+//   brush.drawSequence(sequences);
+// } ());
 
-// refresh();
+refresh();
 // Uncomment on a fast machine
 // zoom();
