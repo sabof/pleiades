@@ -60,19 +60,22 @@ pl.util = {
     return original;
   },
 
+  ensureLength: function(string, length) {
+    if (string.length > length) {
+      return string.substr(0, length);
+    }
+    while (string.length < length) {
+      string = '0' + string;
+    }
+    return string;
+  },
+
   makeTicket: function() {
-    var length = 4,
-        stringInitial = Math.floor(
-          Math.random() * 10000000000)
+    return this.ensureLength(
+      Math.floor(Math.random() * 10000000000)
         .toString(16)
-        .toUpperCase();
-    if (stringInitial.length > length) {
-      return stringInitial.substr(0, length);
-    }
-    while (stringInitial.length < length) {
-      stringInitial = '0' + stringInitial;
-    }
-    return stringInitial;
+        .toUpperCase(),
+      4);
   }
 };
 
