@@ -356,7 +356,7 @@ pl.Generator = function() {};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 5,
+  depth: 3,
   sequencesLength: 17,
 
   maybeRange: function(thing) {
@@ -621,7 +621,8 @@ window.requestAnimFrame = (function(){
 var generator = new pl.Generator(),
     sequences,
     ticket,
-    brush = new pl.RaphaelBrush();
+    brush = new pl.RaphaelBrush(),
+    running = true;
 
 brush.init();
 
@@ -641,16 +642,42 @@ function zoom() {
 }
 
 function refresh() {
+  var ticketInput = document.getElementById('ticket');
   setTimeout(refresh, 2000);
-  if (document.body.className !== 'hidden') {
+  if (document.body.className !== 'hidden' && running) {
     ticket = pl.util.makeTicket();
+    SeedRandom.seed(ticket);
     sequences = generator.make();
     zoomLevel = 0;
     brush.drawSequence(sequences);
-    document.getElementById('ticket-label')
-      .innerHTML = ticket;
+    ticketInput.value = ticket;
   }
 }
+
+document.getElementById('ticket')
+  .addEventListener('focus', function() {
+    running = false;
+  });
+
+document.getElementById('ticket')
+  .addEventListener('blur', function() {
+    running = true;
+  });
+
+document.getElementById('ticket')
+  .addEventListener('keypress', function(e) {
+    if (!e) e = window.event;
+    var keyCode = e.keyCode || e.which;
+    if (keyCode === 13) {
+      var value = this.value.trim();
+      if (value.length === 4 && value !== ticket) {
+        ticket = value;
+        SeedRandom.seed(ticket);
+        sequences = generator.make();
+        brush.drawSequence(sequences);
+      }
+    }
+  });
 
 // (function () {
 //   SeedRandom.seed('test');

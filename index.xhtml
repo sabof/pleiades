@@ -10,19 +10,26 @@ html {
   overflow: hidden;
 }
 
-#ticket-label {
+#ticket {
   position: absolute;
   bottom: 10px;
   right: 20px;
-  padding: 10px;
   font-family: sans-serif;
   font-weight: bold;
   font-style: italic;
+  z-index: 1;
+  font-size: 20px;
+  background: none;
+  border: none;
+  text-align: center;
+}
+#ticket:focus {
+  background: white;
 }
         </style>
     </head>
     <body>
-      <div id="ticket-label"></div>
+        <input id="ticket" type="text" size="4"/>
         <script src="lib/raphael.js"></script>
         <script src="lib/seedrandom.js"></script>
         <script src="pleiades.js"></script>
