@@ -147,6 +147,7 @@ pl.Brush.prototype = {
                 self.shadowBrush,
                 stamp.slice(1)
               ); }}); }
+
     function walker(pattern) {
       pattern.forEach(
         function(stamp) {
@@ -383,8 +384,12 @@ pl.sequenceFactory = {
   random: pl.util.random.bind(pl.util),
 
   make: function(/*optional*/ option) {
-    return this.recipes[option || pl.util.random(Object.keys(this.recipes))]
-      .call(this);
+    return this.recipes[
+      option ||
+        pl.util.random(
+          Object.keys(this.recipes)
+        )]
+      .func.call(this);
   },
 
   getOptions: function() {
@@ -392,30 +397,41 @@ pl.sequenceFactory = {
   },
 
   recipes: {
-    rotate: function() {
-      var random = this.random;
-      return ['rotate', !! random(2)];
+    rotate: {
+      length: 0,
+      func: function() {
+        var random = this.random;
+        return ['rotate', !! random(2)];
+      }
     },
 
-    move: function() {
-      var random = this.random;
-      return [
-        'move',
-        random(5, 10),
-        random('direction'),
-        { 'stroke-width': random(5) }];
-    },
-    line: function() {
-      var random = this.random;
-      return [
-        'line',
-        random(5, 10),
-        random('direction'),
-        { 'stroke-width': random(5) }
-      ];
+    move: {
+      length: 0,
+      func: function() {
+        var random = this.random;
+        return [
+          'move',
+          random(5, 10),
+          random('direction'),
+          { 'stroke-width': random(5) }];
+      }
     },
 
-    circle: function() {
+    line: {
+      func: function() {
+        var random = this.random;
+        return [
+          'line',
+          random(5, 10),
+          random('direction'),
+          { 'stroke-width': random(5) } ];
+      }
+    },
+
+    circle: {
+      probability: 1,
+      length: 1,
+      func: function() {
       var random = this.random;
       return [
         'circle',
@@ -427,9 +443,11 @@ pl.sequenceFactory = {
                     '#000000',
                     '#FF0000'],
                    100)
-          ) } ];
+          ) } ]; }
     },
-    ambient: function() {
+
+    ambient: {
+      func: function() {
       var random = this.random;
       return [
         'rect',
@@ -444,75 +462,91 @@ pl.sequenceFactory = {
                '#000000',
                '#FF0000']),
             100) } ];
-    },
+    }},
 
-    highlight: function() {
-      var random = this.random;
-      return ['rect', random(-10, 10), random(-10, 10),
-              { 'stroke-width': 2,
-                'stroke-opacity': 1 ,
-                'fill-opacity': 1,
-                'fill': pl.color.vary(
-                  this.random(
-                    ['#0000FF',
-                     '#000000',
-                     '#FF0000']),
-                  100) }];
-    },
-
-    snake: function() {
-      var random = this.random,
-          blank;
-      function makeMove(direction) {
-        var type = blank ? 'line' : random(['line', 'move']);
-        if (type === 'move') blank = true;
-        return [
-          type,
-          random(1, 15),
-          direction,
-          {'stroke-width': random(1, 5)}];
+    highlight: {
+      func: function() {
+        var random = this.random;
+        return ['rect', random(-10, 10), random(-10, 10),
+                { 'stroke-width': 2,
+                  'stroke-opacity': 1 ,
+                  'fill-opacity': 1,
+                  'fill': pl.color.vary(
+                    this.random(
+                      ['#0000FF',
+                       '#000000',
+                       '#FF0000']),
+                    100) }];
       }
-
-      var up = makeMove('up'),
-          left = makeMove('left'),
-          right = left.slice(0);
-      right[2] = 'right';
-      return [random(1, 4), [left, up, right, up]];
     },
 
-    target: function() {
-      var scale = 4;
-      return [
-        1,
-        [['circle', scale * 1, {'fill': 'black'}],
-         ['circle', scale * 2, {'stroke-width': this.random(2)}]
-        ]];
+    snake: {
+      func: function() {
+        var random = this.random,
+            blank;
+        function makeMove(direction) {
+          var type = blank ? 'line' : random(
+            ['line', 'move']
+          );
+          if (type === 'move') blank = true;
+          return [
+            type,
+            random(1, 15),
+            direction,
+            {'stroke-width': random(1, 5)}];
+        }
+
+        var up = makeMove('up'),
+            left = makeMove('left'),
+            right = left.slice(0);
+        right[2] = 'right';
+        return [
+          random(1, 4),
+          [left, up, right, up]
+        ]; }
     },
 
-    tree: function() {
-      var random = this.random;
-      var scale = 4;
-      return [
-        1,
-        [['line', random(4, 9),
-          random('direction'),
-          {'stroke-width': random(1, 4)}],
-         ['circle', scale * 2, {'stroke-width': this.random(2)}]
-        ]];
+    target: {
+      func: function() {
+        var scale = 4;
+        return [
+          1,
+          [['circle', scale * 1, {'fill': 'black'}],
+           ['circle', scale * 2, {'stroke-width': this.random(2)}]
+          ]];
+      }
     },
 
-    equal: function() {
-      var random = this.random;
-      var horizSegmentLength = random(1, 1),
-          vertSegmentLength = random(1, 15),
-          horiz = random(1, 5),
-          vert = random(1, 5);
-      return [1,
-              [['line', horizSegmentLength, 'left', {'stroke-width': horiz}],
-               ['move', vertSegmentLength, 'up'],
-               ['line', horizSegmentLength, 'right', {'stroke-width': horiz}]
-              ]];
+    tree: {
+      func: function() {
+        var random = this.random;
+        var scale = 4;
+        return [
+          1,
+          [['line', random(4, 9),
+            random('direction'),
+            {'stroke-width': random(1, 4)}],
+           ['circle', scale * 2, {'stroke-width': this.random(2)}]
+          ]];
+      }
+    },
+
+    equal: {
+      func: function() {
+        var random = this.random;
+        var horizSegmentLength = random(1, 1),
+            vertSegmentLength = random(1, 15),
+            horiz = random(1, 5),
+            vert = random(1, 5);
+        return [
+          1,
+          [['line', horizSegmentLength, 'left', {'stroke-width': horiz}],
+           ['move', vertSegmentLength, 'up'],
+           ['line', horizSegmentLength, 'right', {'stroke-width': horiz}]
+          ]];
+      }
     }
+
   }
 };
 
