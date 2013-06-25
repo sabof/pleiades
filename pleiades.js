@@ -1,4 +1,8 @@
 /*global Raphael, SeedRandom*/
+
+// Project hosted at http://github.com/sabof/pleiades
+// Version 0.1
+
 var pl = {};
 
 // -----------------------------------------------------------------------------
