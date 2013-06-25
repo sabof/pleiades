@@ -53,3 +53,20 @@ function test_centerer() {
   brush.init();
   brush.drawSequence(sequences);
 }
+
+function isPatternValid(pattern) {
+  return (pattern instanceof Array &&
+          (typeof pattern[0] === 'number' ||
+           typeof pattern[0] === 'string')
+         );
+}
+
+function should() {
+
+}
+
+function test_sequenceFactory() {
+  should(pl.sequenceFactory.make() instanceof Array);
+  should(isPatternValid(["circle", 6]));
+
+}

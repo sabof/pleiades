@@ -44,10 +44,10 @@ pl.util = {
     Array.prototype.slice
       .call(arguments, 1)
       .forEach(function(mixin) {
-      Object.keys(mixin).forEach(function(key) {
-        original[key] = mixin[key];
+        Object.keys(mixin).forEach(function(key) {
+          original[key] = mixin[key];
+        });
       });
-    });
     return original;
   }
 };
@@ -137,6 +137,12 @@ pl.Brush.prototype = {
       // console.log(pattern);
       pattern.forEach(
         function(stamp) {
+          try {
+            parseInt(typeof stamp[0] === 'number', 10);
+          } catch (error) {
+            console.log(stamp);
+            console.log(pattern);
+          }
           if (typeof stamp[0] === 'number') {
             for (var i = 0; i < stamp[0]; i++) {
               shadowWalker(stamp[1]);
@@ -319,16 +325,8 @@ pl.Generator = function() {};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 4,
-  sequencesLength: 10,
-  probablilityTable: {
-    line: 20,
-    move: 30,
-    // rect: 20,
-    // circle: 10,
-    rotate: 20,
-    sequencePreset: 1
-  },
+  depth: 2,
+  sequencesLength: 2,
 
   maybeRange: function(thing) {
     if (thing instanceof Array) {
@@ -342,29 +340,12 @@ pl.Generator.prototype = {
       thing() :
       thing; },
 
-  chooseAction: (function() {
-    var wheel, wheelLength;
-    return function () {
-      if (wheel === undefined) {
-        wheel = [];
-        var pt = this.probablilityTable;
-        Object.keys(pt)
-          .forEach(function(key) {
-            var weight = pt[key];
-            for (var i = 0; i < weight; i++) {
-              wheel.push(key);
-            }});
-        wheelLength = wheel.length;
-      }
-      return wheel[pl.util.random(wheelLength)];
-    }; } ()),
-
   make: function() {
     var sequences = [],
         random = pl.util.random.bind(pl.util);
-    for (var i = 0, iLimit = this.depth; i < iLimit; i++) {
+    for (var i = 0, iL = this.depth; i < iL; i++) {
       var currentSequence = [];
-      for (var j = 0, jLimit = this.sequencesLength; j < jLimit; j++) {
+      for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
         currentSequence.push(pl.sequenceFactory.make());
       }
       if (sequences.length) {
@@ -383,13 +364,29 @@ pl.Generator.prototype = {
 pl.sequenceFactory = {
   random: pl.util.random.bind(pl.util),
 
+  makeMake: function() {
+    var self = this,
+        wheel = [],
+        wheelLength;
+    Object.keys(this.recipes)
+      .forEach(function(recipeKey) {
+        var probability = self.recipes[recipeKey]
+            .probability || 1;
+        for (var i = 0; i < probability; i++) {
+          wheel.push(self.recipes[recipeKey]);
+        }
+      });
+    wheelLength = wheel.length;
+    this.make = function() {
+      var object = wheel[this.random(wheelLength)],
+          result = object.func.call(this);
+      return result;
+    };
+  },
+
   make: function(/*optional*/ option) {
-    return this.recipes[
-      option ||
-        pl.util.random(
-          Object.keys(this.recipes)
-        )]
-      .func.call(this);
+    this.makeMake();
+    return this.make();
   },
 
   getOptions: function() {
@@ -398,7 +395,7 @@ pl.sequenceFactory = {
 
   recipes: {
     rotate: {
-      length: 0,
+      maxLength: 0,
       func: function() {
         var random = this.random;
         return ['rotate', !! random(2)];
@@ -406,65 +403,68 @@ pl.sequenceFactory = {
     },
 
     move: {
-      length: 0,
+      maxLength: 0,
       func: function() {
         var random = this.random;
         return [
           'move',
           random(5, 10),
           random('direction'),
-          { 'stroke-width': random(5) }];
-      }
+          { 'stroke-width': random(5) }
+        ]; }
     },
 
     line: {
+      maxLength: 1,
       func: function() {
         var random = this.random;
         return [
           'line',
           random(5, 10),
           random('direction'),
-          { 'stroke-width': random(5) } ];
-      }
+          { 'stroke-width': random(5) }
+        ]; }
     },
 
     circle: {
-      probability: 1,
-      length: 1,
+      probability: 30,
+      maxLength: 1,
       func: function() {
-      var random = this.random;
-      return [
-        'circle',
-        random(10),
-        { 'stroke-width': 2,
-          'fill-opacity': random(),
-          'fill': pl.color.vary(
-            random(['#0000FF',
-                    '#000000',
-                    '#FF0000'],
-                   100)
-          ) } ]; }
+        var random = this.random;
+        return [
+          'circle',
+          random(10),
+          { 'stroke-width': 2,
+            'fill-opacity': random(),
+            'fill': pl.color.vary(
+              random(['#0000FF',
+                      '#000000',
+                      '#FF0000'],
+                     100)
+            ) } ]; }
     },
 
     ambient: {
+      maxLength: 1,
       func: function() {
-      var random = this.random;
-      return [
-        'rect',
-        random(-60, 60),
-        random(-60, 60),
-        { 'stroke-width': random(3),
-          'stroke-opacity': random() * 0.5 + 0.1,
-          'fill-opacity': random() / 10,
-          'fill': pl.color.vary(
-            random(
-              ['#0000FF',
-               '#000000',
-               '#FF0000']),
-            100) } ];
-    }},
+        var random = this.random;
+        return [
+          'rect',
+          random(-60, 60),
+          random(-60, 60),
+          { 'stroke-width': random(3),
+            'stroke-opacity': random() * 0.5 + 0.1,
+            'fill-opacity': random() / 10,
+            'fill': pl.color.vary(
+              random(
+                ['#0000FF',
+                 '#000000',
+                 '#FF0000']),
+              100) } ]; }
+    },
 
     highlight: {
+      maxLength: 1,
       func: function() {
         var random = this.random;
         return ['rect', random(-10, 10), random(-10, 10),
@@ -476,8 +476,7 @@ pl.sequenceFactory = {
                       ['#0000FF',
                        '#000000',
                        '#FF0000']),
-                    100) }];
-      }
+                    100) }]; }
     },
 
     snake: {
@@ -513,8 +512,7 @@ pl.sequenceFactory = {
           1,
           [['circle', scale * 1, {'fill': 'black'}],
            ['circle', scale * 2, {'stroke-width': this.random(2)}]
-          ]];
-      }
+          ]]; }
     },
 
     tree: {
@@ -527,8 +525,7 @@ pl.sequenceFactory = {
             random('direction'),
             {'stroke-width': random(1, 4)}],
            ['circle', scale * 2, {'stroke-width': this.random(2)}]
-          ]];
-      }
+          ]]; }
     },
 
     equal: {
@@ -543,8 +540,7 @@ pl.sequenceFactory = {
           [['line', horizSegmentLength, 'left', {'stroke-width': horiz}],
            ['move', vertSegmentLength, 'up'],
            ['line', horizSegmentLength, 'right', {'stroke-width': horiz}]
-          ]];
-      }
+          ]]; }
     }
 
   }
@@ -627,6 +623,12 @@ function refresh() {
   }
 }
 
-refresh();
+(function () {
+  SeedRandom.seed('test');
+  sequences = generator.make();
+  brush.drawSequence(sequences);
+} ());
+
+// refresh();
 // Uncomment on a fast machine
 // zoom();
