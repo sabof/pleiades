@@ -104,15 +104,12 @@ pl.color = {
     ];
     var processed = parsed.map(
       function(channel) {
-        var raw = channel +
-              (pl.util.random(intensity * 2) -
-               intensity),
-            normalized = Math.min(255, Math.max(0, raw));
-        return normalized;
+        var raw = channel + (pl.util.random(intensity * 2) - intensity),
+            normalized = Math.min(255, Math.max(0, raw)),
+            stringified = pl.util.ensureLength(normalized.toString(16), 2);
+        return stringified;
       });
-    return 'rgb(' + processed[0] + ', ' +
-      processed[1] + ', ' +
-      processed[2] + ')';
+    return String.prototype.concat.apply('#', processed);
   }
 };
 
