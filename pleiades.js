@@ -219,7 +219,7 @@ pl.ShadowBrush.prototype = pl.util.extend(
       this.point = [0, 0];
     },
 
-    adjustPoint: function(point) {
+    trackPoint: function(point) {
       var x = Math.round(this._offset[0] + this.zoom * point[0]),
           y = Math.round(this._offset[1] + this.zoom * point[1]);
       if ( ! this.boundaries) {
@@ -240,12 +240,12 @@ pl.ShadowBrush.prototype = pl.util.extend(
       var newPoint2 = ([
         this.point[0] + radius,
         this.point[1] + radius]);
-      this.adjustPoint(newPoint);
-      this.adjustPoint(newPoint2);
+      this.trackPoint(newPoint);
+      this.trackPoint(newPoint2);
     },
 
     rect: function(width, height, style) {
-      var adjOldPoint = this.adjustPoint(this.point),
+      var adjOldPoint = this.trackPoint(this.point),
           verticalLength = Math.abs(width),
           verticalDirection = (height > 0) ? 'down' : 'up',
           horizontalLength = Math.abs(height),
@@ -258,14 +258,13 @@ pl.ShadowBrush.prototype = pl.util.extend(
         this.point,
         verticalLength,
         verticalDirection);
-      var adjPoint = this.adjustPoint(this.point);
+      this.trackPoint(this.point);
     },
 
     line: function(length, direction) {
-      this.adjustPoint(this.point);
-      this.point = this.adjustPoint(
-        this.directionTranslate(
-          this.point, length, direction));
+      this.trackPoint(this.point);
+      this.move(length, direction);
+      this.trackPoint(this.point);
     }
 
   });
