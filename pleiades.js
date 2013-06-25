@@ -204,7 +204,7 @@ pl.Brush.prototype = {
     this.reset();
     this.boundaries = undefined;
     this.shadowBrush = this.shadowBrush ||
-      new pl.ShadowBrush();
+      new pl.Compass();
     this.shadowBrush.reset();
     this.shadowBrush.boundaries = undefined;
     shadowWalker(sequence);
@@ -232,11 +232,11 @@ pl.Brush.prototype = {
 
 // -----------------------------------------------------------------------------
 
-pl.ShadowBrush = function() {};
+pl.Compass = function() {};
 
-pl.ShadowBrush.prototype = pl.util.extend(
+pl.Compass.prototype = pl.util.extend(
   new pl.Brush(),
-  { constructor: pl.ShadowBrush,
+  { constructor: pl.Compass,
     boundaries: undefined,
 
     reset: function() {
