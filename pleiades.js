@@ -115,9 +115,7 @@ pl.color = {
 // -----------------------------------------------------------------------------
 
 pl.Brush = function(compass) {
-  if (compass) {
-    this.compass = compass;
-  }
+  this.compass = compass || new pl.Compass();
   this.point = [0, 0];
   this._offset = [0, 0];
   this.directions = ['up', 'right', 'down', 'left'];
@@ -153,8 +151,7 @@ pl.Brush.prototype = {
   line: function(length, direction) {},
   // Could add a hor, vert format
   move: function(length, direction) {
-    if ( ! this.directions.some(function(member) {
-      return member === direction; }))
+    if ( this.directions.indexOf(direction) === -1)
     {
       throw new Error('Illegal direction: ' + direction);
     }
@@ -189,7 +186,6 @@ pl.Brush.prototype = {
               ); }}); }
 
     this.reset();
-    this.compass = this.compass || new pl.Compass();
     var outerBoundaries = this.compass.calculateBoundaries(
       composition
     );
@@ -211,7 +207,8 @@ pl.Brush.prototype = {
     walker(composition);
   },
 
-  init: function() {}
+  init: function() {},
+  destroy: function() {}
 };
 
 // -----------------------------------------------------------------------------
@@ -298,6 +295,10 @@ pl.Compass.prototype = pl.util.extend(
               self._walker(stamp[1]);
             }
           } else {
+            if ( ! self[stamp[0]]) {
+              console.log(stamp);
+              console.log(self[stamp]);
+            }
             self[stamp[0]].apply(self, stamp.slice(1));
           }}); },
 
@@ -440,8 +441,9 @@ pl.stampFactory = {
         }
       });
     wheelLength = wheel.length;
-    this.make = function() {
-      var object = wheel[this.random(wheelLength)],
+    this.make = function(option) {
+      var object = option ? this.recipes[option] :
+          wheel[this.random(wheelLength)],
           result = object.func.call(this);
       return result;
     };
@@ -449,7 +451,7 @@ pl.stampFactory = {
 
   make: function(/*optional*/ option) {
     this.makeMake();
-    return this.make();
+    return this.make(option);
   },
 
   getOptions: function() {
@@ -631,75 +633,3 @@ window.requestAnimFrame = (function(){
     window.onpageshow = window.onpagehide = window.onfocus = window.onblur = onchange;
 
 })();
-
-// -----------------------------------------------------------------------------
-
-var generator = new pl.Generator(),
-    composition,
-    ticket,
-    brush = new pl.RaphaelBrush(),
-    running = true;
-
-brush.init();
-
-var zoomLevel = 0,
-    zoomSpeed = 5;
-
-function zoom() {
-  zoomLevel++;
-  window.requestAnimFrame(zoom);
-  brush.paper.setViewBox(
-    zoomLevel * zoomSpeed,
-    zoomLevel * zoomSpeed,
-    window.innerWidth - zoomLevel * 2 * zoomSpeed,
-    window.innerHeight - zoomLevel * 2 * zoomSpeed,
-    true
-  );
-}
-
-function refresh() {
-  var ticketInput = document.getElementById('ticket');
-  setTimeout(refresh, 2000);
-  if (document.body.className !== 'hidden' && running) {
-    ticket = pl.util.makeTicket();
-    SeedRandom.seed(ticket);
-    composition = generator.make();
-    zoomLevel = 0;
-    brush.drawComposition(composition);
-    ticketInput.value = ticket;
-  }
-}
-
-document.getElementById('ticket')
-  .addEventListener('focus', function() {
-    running = false;
-  });
-
-document.getElementById('ticket')
-  .addEventListener('blur', function() {
-    running = true;
-  });
-
-document.getElementById('ticket')
-  .addEventListener('keypress', function(e) {
-    if (!e) e = window.event;
-    var keyCode = e.keyCode || e.which;
-    if (keyCode === 13) {
-      var value = this.value.trim();
-      if (value.length === 4 && value !== ticket) {
-        ticket = value;
-        SeedRandom.seed(ticket);
-        composition = generator.make();
-        brush.drawComposition(composition);
-      }}
-  });
-
-// (function () {
-//   SeedRandom.seed('test');
-//   composition = generator.make();
-//   brush.drawComposition(composition);
-// } ());
-
-// refresh();
-// Uncomment on a fast machine
-// zoom();
