@@ -131,6 +131,50 @@ SeedRandom.seed('test');
 
 // -----------------------------------------------------------------------------
 
+describe('Ranges', function() {
+  var validRanges = [
+    [[5, 15], [10, 20]]
+  ];
+  var invalidRanges = [
+    [[5, 10], [10, 20]]
+  ];
+  validRanges.forEach(function(range) {
+    it(JSON.stringify(range) + ' should overlap')
+      .expect(pl.util.rangesOverlap.apply(pl.util, range))
+      .toBeTruthy();
+  });
+  invalidRanges.forEach(function(range) {
+    it(JSON.stringify(range) + ' should not overlap')
+      .expect(pl.util.rangesOverlap.apply(pl.util, range))
+      .toBeFalsy();
+  });
+});
+
+// -----------------------------------------------------------------------------
+
+describe('Rectangles', function() {
+  var validRects = [
+    [[0, 0, 10, 10],
+     [5, 5, 10, 10]]
+  ];
+  var invalidRects = [
+    [[0, 0, 10, 10],
+     [10, 10, 10, 10]]
+  ];
+  validRects.forEach(function(rect) {
+    it(JSON.stringify(rect) + ' should overlap')
+      .expect(pl.util.rectanglesOverlap.apply(pl.util, rect))
+      .toBeTruthy();
+  });
+  invalidRects.forEach(function(rect) {
+    it(JSON.stringify(rect) + ' should not overlap')
+      .expect(pl.util.rectanglesOverlap.apply(pl.util, rect))
+      .toBeFalsy();
+  });
+});
+
+// -----------------------------------------------------------------------------
+
 describe("Stamp validator", function() {
   var validStamps = [
     "['circle', 5]",
@@ -212,11 +256,11 @@ describe("Compass", function() {
   window.compass = compass;
   compass.zoom = 1;
   compass.line(5, 'left');
-  outerBoundaries = compass.getOuterBoundaries();
+  outerBoundaries = compass.getOuterRect();
   it('When a line is drawn the boundaries shoudld be adjusted').
     expect(outerBoundaries[0] === -5 &&
            outerBoundaries[1] === 0 &&
-           outerBoundaries[2] === 0 &&
+           outerBoundaries[2] === 5 &&
            outerBoundaries[3] === 0
           ).toBeTruthy();
   composition = [
@@ -224,8 +268,8 @@ describe("Compass", function() {
     ["circle",8, {"stroke-width":0}]
   ];
   compass.measure(composition);
-  outerBoundaries = compass.getOuterBoundaries();
-  it('All boundaries should be numbers')
+  outerBoundaries = compass.getOuterRect();
+  it('Outer rect should consist of numbers')
     .expect(outerBoundaries.every(function(boundary) {
       return (typeof boundary === 'number') &&
         ! isNaN(boundary);

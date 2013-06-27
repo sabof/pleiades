@@ -43,12 +43,14 @@ function refresh() {
   var ticketInput = document.getElementById('ticket');
   setTimeout(refresh, 2000);
   if (document.body.className !== 'hidden' && running) {
-    ticket = pl.util.makeTicket();
-    SeedRandom.seed(ticket);
-    composition = generator.make();
-    zoomLevel = 0;
-    brush.drawComposition(composition);
-    ticketInput.value = ticket;
+    while (true) {
+      ticket = pl.util.makeTicket();
+      SeedRandom.seed(ticket);
+      if (step()) {
+        ticketInput.value = ticket;
+        break;
+      }
+    }
   }
 }
 
@@ -83,14 +85,21 @@ function init() {
   brush = new pl.RaphaelBrush();
   brush.init();
   generator = new pl.Generator()
+  // brush._showBoundingBox = true;
 }
 
-switch (-1) {
+function step() {
+  // SeedRandom.seed('4D30'); // invisible
+  // SeedRandom.seed('1420'); // small
+  composition = generator.make();
+  return brush.drawComposition(composition);
+}
+
+switch (2) {
 case 1:
   SeedRandom.seed('test');
   init();
-  composition = generator.make();
-  brush.drawComposition(composition);
+  step();
   break;
 
 case 2:
