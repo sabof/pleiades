@@ -85,18 +85,24 @@ function init() {
   generator = new pl.Generator()
 }
 
-switch (2) {
-  case 1:
+switch (-1) {
+case 1:
   SeedRandom.seed('test');
   init();
   composition = generator.make();
   brush.drawComposition(composition);
   break;
 
-  case 2:
+case 2:
   init();
   refresh();
   break;
+
+case 0:
+  break;
+
+default:
+  init();
 }
 
 </script>

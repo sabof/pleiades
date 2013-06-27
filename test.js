@@ -1,4 +1,4 @@
-/*global generator:true, composition:true, brush:true, pl, SeedRandom, describe, it, expect*/
+/*global generator:true, composition:true, brush:true, pl, SeedRandom, describe, it, expect, jasmine*/
 
 var plt = {};
 
@@ -102,23 +102,26 @@ function test_simpleDrawing() {
   brush.line(5, 'right');
 }
 
+function makeReporter(name, returnValue) {
+  return function () {
+    var prettyArguments =
+        Array.prototype.map.call(
+          arguments,
+          function(argument) {
+            return JSON.stringify(argument); })
+        .join(', ');
+    jasmine.log(name + '(' + prettyArguments + ')');
+    return returnValue;
+  };
+}
+
 function MockPaper() {
-  function makeReporter(name) {
-    var prettyArguments = String.prototype.concat.apply(
-      '',
-      Array.prototype.map.call(
-        arguments,
-        function(argument) {
-          return argument.toString();
-        }));
-    console.log(name + ' ' + prettyArguments);
-    return {attr: function() {}};
-  }
   // console.log(arguments);
   var self = this;
   ['clear', 'setSize', 'path', 'rect', 'circle']
     .forEach(function(method) {
-      self[method] = makeReporter(method);
+      // self[method] = makeReporter(method, {attr: function() {}});
+      self[method] = function () { return {attr: function() {}}; };
     });
 }
 
@@ -234,6 +237,7 @@ describe("Compass", function() {
 describe("RaphaelBrush", function() {
   brush = new pl.RaphaelBrush();
   brush.paper = new MockPaper();
+  jasmine.log('log test');
   it("shouldn't throw", function() {
     expect(function () {
       try {

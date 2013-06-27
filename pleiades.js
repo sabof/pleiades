@@ -93,6 +93,23 @@ pl.util = {
     var aKeys = Object.keys(a);
     var bKeys = Object.keys(a);
     return true;
+  },
+
+  rangesOverlap: function(rangeA, rangeB) {
+    return ! (
+      rangeB[1] <= rangeA[0] ||
+        rangeA[1] <= rangeB[0]
+    );
+  },
+
+  rectanglesOverlap: function(rectA, rectB) {
+    return this.rangesOverlap(
+      [rectA[0], rectA[0] + rectA[2]],
+      [rectB[0], rectB[0] + rectB[2]]
+    ) && this.rangesOverlap(
+      [rectA[1], rectA[1] + rectA[3]],
+      [rectB[1], rectB[1] + rectB[3]]
+    );
   }
 };
 
@@ -151,6 +168,12 @@ pl.Brush.prototype = {
   adjustPoint: function(point) {
     var x = Math.round(this._offset[0] + this.zoom * point[0]),
         y = Math.round(this._offset[1] + this.zoom * point[1]);
+    return [x, y];
+  },
+
+  unadjustPoint: function(point) {
+    var x = Math.round((point[0] - this._offset[0]) / this.zoom),
+        y = Math.round((point[1] - this._offset[1]) / this.zoom);
     return [x, y];
   },
 
@@ -233,8 +256,20 @@ pl.Compass.prototype = pl.util.extend(
     },
 
     trackPoint: function(point) {
-      var x = Math.round(this._offset[0] + this.zoom * point[0]),
-          y = Math.round(this._offset[1] + this.zoom * point[1]);
+      var x = point[0],
+          y = point[1];
+      if (point.length !== 2) {
+        throw new Error(
+          'Wrong number of coordinates: ' +
+            point.length);
+      }
+      if ( ! point.every(function(num) {
+        return typeof num === 'number' && ! isNaN(num); }))
+      { throw new Error(
+        'Some point members are not numbers: ' +
+          JSON.stringify(point));
+      }
+
       if ( ! this._outerBoundaries) {
         this._outerBoundaries = [x, y, x, y];
       } else {
@@ -248,6 +283,17 @@ pl.Compass.prototype = pl.util.extend(
 
     // [left, top, width, height]
     trackRect: function(coordinates) {
+      if (coordinates.length !== 4) {
+        throw new Error(
+          'Wrong number of coordinates: ' +
+            coordinates.length);
+      }
+      if ( ! coordinates.every(function(num) {
+        return typeof num === 'number' && ! isNaN(num); }))
+      { throw new Error(
+        'Some coordinates are not numbers: ' +
+          JSON.stringify(coordinates));
+      }
       this._objectBoundaries.push(coordinates);
       this.trackPoint(
         [coordinates[0],
@@ -268,7 +314,7 @@ pl.Compass.prototype = pl.util.extend(
     },
 
     rect: function(width, height, style) {
-      var adjOldPoint = this.trackPoint(this.point),
+      var rect = [this.point[0], this.point[0], width, height],
           verticalLength = Math.abs(width),
           verticalDirection = (height > 0) ? 'down' : 'up',
           horizontalLength = Math.abs(height),
@@ -281,7 +327,9 @@ pl.Compass.prototype = pl.util.extend(
         this.point,
         verticalLength,
         verticalDirection);
-      this.trackPoint(this.point);
+      this.trackRect(rect);
+
+      // this.trackRect(this.point);
     },
 
     line: function(length, direction) {
@@ -312,9 +360,21 @@ pl.Compass.prototype = pl.util.extend(
       this._walker(composition);
     },
 
-    getOuterBoundaries: function() {
+    getOuterBoundaries: function(adjusted) {
       if ( ! this._outerBoundaries) {
         throw new Error('Boundaries not calculated');
+      }
+      if (adjusted) {
+        var ob = this._outerBoundaries,
+            adjPoints = [
+              this._outerBoundaries.slice(0, 2),
+              [this._outerBoundaries[0] + this._outerBoundaries[2],
+               this._outerBoundaries[1] + this._outerBoundaries[3]]
+            ].map(this.adjustPoint, this);
+        return adjPoints[0].concat(
+          [adjPoints[1][0] - adjPoints[0][0],
+           adjPoints[1][1] - adjPoints[0][1]]
+        );
       }
       return this._outerBoundaries;
     }
