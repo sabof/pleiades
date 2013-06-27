@@ -61,28 +61,30 @@ function test_centerer() {
 
 plt.isStampValid = function(pattern) {
   if ( ! pattern instanceof Array) {
-    return false;
+    throw new Error('A stamp must be an array');
   }
   if (typeof pattern[0] === 'number') {
     if ( ! pattern[1] instanceof Array) {
-      return false;
+      throw new Error('Second member of the repeater should be an Array');
     }
-    return pattern[1].every(this.isSequenceValid.bind(this));
+    return this.isSequenceValid.call(this, pattern[1]);
+    // return true;
   } else if (typeof pattern[0] === 'string') {
-    return ['move', 'line', 'circle', 'rect'].indexOf(
-      pattern[0]) !== -1;
+    if (['move', 'line', 'circle', 'rect', 'rotate'].indexOf(pattern[0]) === -1) {
+      throw new Error('Invalid keyword: ' + pattern[0]);
+    }
   } else {
     // console.log(pattern);
     throw new Error('The first member of a stamp should be a number or a string');
   }
   return true;
-};
+}.bind(plt);
 
 plt.isSequenceValid = function(sequence) {
   return sequence &&
     sequence instanceof Array &&
-    sequence.every(this.isStampValid.bind(this));
-};
+    sequence.every(this.isStampValid);
+}.bind(plt);
 
 function should() {
 
@@ -100,28 +102,118 @@ function test_simpleDrawing() {
   brush.line(5, 'right');
 }
 
-function test_sequenceFactory() {
-  var factory = pl.stampFactory(),
-      recipes = factory.getOptions(),
-      dishes = recipes.map(function(name) {
-        return factory.make(name);
-      });
-
-  should(dishes.every(plt.isStampValid.bind(plt)));
-  should(pl.sequenceFactory.make() instanceof Array);
-  should(plt.isStampValid(["circle", 6]));
-
+function MockPaper() {
+  function makeReporter(name) {
+    var prettyArguments = String.prototype.concat.apply(
+      '',
+      Array.prototype.map.call(
+        arguments,
+        function(argument) {
+          return argument.toString();
+        }));
+    console.log(name + ' ' + prettyArguments);
+    return {attr: function() {}};
+  }
+  // console.log(arguments);
+  var self = this;
+  ['clear', 'setSize', 'path', 'rect', 'circle']
+    .forEach(function(method) {
+      self[method] = makeReporter(method);
+    });
 }
 
 // -----------------------------------------------------------------------------
 
+SeedRandom.seed('test');
+
+// -----------------------------------------------------------------------------
+
+describe("Stamp validator", function() {
+  var validStamps = [
+    "['circle', 5]",
+    "['rect', -5, 5]",
+    '["move", 6, "down"]',
+    '["line", 6, "right", {"stroke-width":3}]',
+    "[4, [['rect', -5, 5]]]",
+    "['rotate', true]",
+    '["rect",-2,9, {"stroke-width": 2, "stroke-opacity": 1, "fill-opacity": 1, "fill": "#0000fb"}]'
+  ];
+  var invalidStamps = [
+    "[]",
+    "{}",
+    "'notastamp'",
+    "5"
+  ];
+  validStamps.forEach(function(stamp) {
+    it('should allow ' + stamp)
+      .expect(plt.isStampValid(eval(stamp)))
+      .toBeTruthy();
+  });
+  invalidStamps.forEach(function(stamp) {
+    it('should forbid ' + stamp)
+      .expect(function () { plt.isStampValid(eval(stamp)); })
+      .toThrow();
+  });
+});
+
+// -----------------------------------------------------------------------------
+
+describe("Sequence validator", function() {
+  var validSequences = [
+    "[]",
+    "[['rect', -5, 5]]",
+    "[[4, [['rect', -5, 5]]]]",
+    "[[4, [['rect', -5, 5], [4, [['rect', -5, 5]]]]]]"
+  ];
+  validSequences.forEach(function(sequence) {
+    it('should allow ' + sequence)
+      .expect(plt.isSequenceValid(eval(sequence)))
+      .toBeTruthy();
+  });
+});
+
+// -----------------------------------------------------------------------------
+
+describe('sequenceFactory', function() {
+  var factory = pl.stampFactory,
+      recipes = pl.stampFactory.getOptions(),
+      dishes = recipes.map(function(name) {
+        return factory.make(name);
+      });
+  recipes.forEach(function(recipe) {
+    it('should produce a valid \"' + recipe + '\" stamp')
+      .expect(plt.isStampValid(factory.make(recipe)))
+      .toBeTruthy();
+  });
+});
+
+// -----------------------------------------------------------------------------
+
 describe("Generator", function() {
-  SeedRandom.seed('test');
-  var generator   = new pl.Generator(),
-      composition = generator.make();
+  generator   = new pl.Generator();
+  generator.sequencesLength = 4;
+  generator.depth = 2;
+  composition = generator.make();
   it("should create valid compositions", function() {
     expect(plt.isSequenceValid(composition))
       .toBeTruthy();
   }
     );
+});
+
+// -----------------------------------------------------------------------------
+
+describe("RaphaelBrush", function() {
+  brush = new pl.RaphaelBrush();
+  brush.paper = new MockPaper();
+  it("shouldn't throw", function() {
+    expect(function () {
+      try {
+        brush.drawComposition(composition);
+      } catch (error) {
+        return false;
+      }
+      return true; })
+      .toBeTruthy();
+  });
 });
