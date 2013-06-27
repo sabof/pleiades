@@ -12,16 +12,16 @@ function test_directionTranslate() {
 }
 
 function test_simpleRepeater() {
-  generator = new pl.Generator();
-  sequences = [
+  var generator = new pl.Generator();
+  var sequences = [
     [['line', 30, 'up']],
     [['rect', 30, 30, {'fill' : '#aa0044'}],
      ['line', 10, 'right']]
   ];
   sequences[0].push([4, sequences[1]]);
-  brush = new pl.RaphaelBrush();
+  var brush = new pl.RaphaelBrush();
   brush.init();
-  brush.drawSequence(sequences);
+  brush.drawComposition(sequences);
 }
 
 function test_rotator() {
@@ -38,7 +38,7 @@ function test_rotator() {
   sequences[0].push([2, sequences[1]]);
   brush = new pl.RaphaelBrush();
   brush.init();
-  brush.drawSequence(sequences);
+  brush.drawComposition(sequences);
 }
 
 function test_centerer() {
@@ -51,7 +51,7 @@ function test_centerer() {
   sequences[0].push([4, sequences[1]]);
   brush = new pl.RaphaelBrush();
   brush.init();
-  brush.drawSequence(sequences);
+  brush.drawComposition(sequences);
 }
 
 function isPatternValid(pattern) {
@@ -63,6 +63,18 @@ function isPatternValid(pattern) {
 
 function should() {
 
+}
+
+function test_simpleDrawing() {
+  // var composition = [
+  //   [['rect', 30, 30, {'fill' : '#aa0044'}],
+  //    ['line', 10, 'right']]
+  // ],
+  brush = new pl.RaphaelBrush();
+  brush.init();
+  brush.move(5, 'down');
+  brush.move(5, 'right');
+  brush.line(5, 'right');
 }
 
 function test_sequenceFactory() {

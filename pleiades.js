@@ -67,8 +67,7 @@ pl.util = {
       .forEach(function(mixin) {
         Object.keys(mixin).forEach(function(key) {
           original[key] = mixin[key];
-        });
-      });
+        }); });
     return original;
   },
 
@@ -115,18 +114,18 @@ pl.color = {
 
 // -----------------------------------------------------------------------------
 
-pl.Brush = function(shadowBrush) {
-  if (shadowBrush) {
-    this.shadowBrush = shadowBrush;
+pl.Brush = function(compass) {
+  if (compass) {
+    this.compass = compass;
   }
+  this.point = [0, 0];
+  this._offset = [0, 0];
+  this.directions = ['up', 'right', 'down', 'left'];
+  this.zoom = 3;
 };
 
 pl.Brush.prototype = {
   constructor: pl.Brush,
-  point: Object.freeze([0, 0]),
-  _offset: Object.freeze([0, 0]),
-  zoom: 3,
-  directions: Object.freeze(['up', 'right', 'down', 'left']),
 
   reset: function() {},
 
@@ -154,6 +153,12 @@ pl.Brush.prototype = {
   line: function(length, direction) {},
   // Could add a hor, vert format
   move: function(length, direction) {
+    if ( ! this.directions.some(function(member) {
+      return member === direction; }))
+    {
+      throw new Error('Illegal direction: ' + direction);
+    }
+
     this.point = this.directionTranslate(
       this.point, length, direction);
   },
@@ -162,30 +167,15 @@ pl.Brush.prototype = {
     this.directions = pl.util.rotateArray(this.directions, reverse);
   },
 
-  drawSequence: function(sequence) {
+  drawComposition: function(composition) {
     var self = this,
         windowCenter = [
-      window.innerWidth / 2,
-      window.innerHeight / 2 ],
+          window.innerWidth / 2,
+          window.innerHeight / 2 ],
         imageCenter;
 
-    function shadowWalker(pattern) {
-      // console.log(pattern);
-      pattern.forEach(
-        function(stamp) {
-          if (typeof stamp[0] === 'number') {
-            for (var i = 0; i < stamp[0]; i++) {
-              shadowWalker(stamp[1]);
-            }
-          } else {
-            self.shadowBrush[stamp[0]]
-              .apply(
-                self.shadowBrush,
-                stamp.slice(1)
-              ); }}); }
-
-    function walker(pattern) {
-      pattern.forEach(
+    function walker(composition) {
+      composition.forEach(
         function(stamp) {
           if (typeof stamp[0] === 'number') {
             for (var i = 0; i < stamp[0]; i++) {
@@ -199,22 +189,18 @@ pl.Brush.prototype = {
               ); }}); }
 
     this.reset();
-    this.boundaries = undefined;
-    this.shadowBrush = this.shadowBrush ||
-      new pl.Compass();
-    this.shadowBrush.reset();
-    this.shadowBrush.boundaries = undefined;
-    shadowWalker(sequence);
+    this.compass = this.compass || new pl.Compass();
+    var outerBoundaries = this.compass.calculateBoundaries(
+      composition
+    );
     imageCenter = [
-      (this.shadowBrush.boundaries[0] +
-       this.shadowBrush.boundaries[2]) / 2,
-      (this.shadowBrush.boundaries[1] +
-       this.shadowBrush.boundaries[3]) / 2
+      (outerBoundaries[0] + outerBoundaries[2]) / 2,
+      (outerBoundaries[1] + outerBoundaries[3]) / 2
     ];
     // try {
 
     // } catch (error) {
-    //   if ( ! this.shadowBrush.boundaries[0]) {
+    //   if ( ! this.compass.outerBoundaries[0]) {
     //     console.log('blank image');
     //   }
     //   imageCenter = windowCenter;
@@ -222,47 +208,61 @@ pl.Brush.prototype = {
     this._offset = [
       windowCenter[0] - imageCenter[0],
       windowCenter[1] - imageCenter[1]];
-    walker(sequence);
+    walker(composition);
   },
+
   init: function() {}
 };
 
 // -----------------------------------------------------------------------------
 
-pl.Compass = function() {};
+pl.Compass = function() {
+  this._objectBoundaries = [];
+  this._outerBoundaries = undefined;
+};
 
 pl.Compass.prototype = pl.util.extend(
   new pl.Brush(),
   { constructor: pl.Compass,
-    boundaries: undefined,
-
     reset: function() {
       this.point = [0, 0];
+      this._outerBoundaries = undefined;
+      this._objectBoundaries = [];
     },
 
     trackPoint: function(point) {
       var x = Math.round(this._offset[0] + this.zoom * point[0]),
           y = Math.round(this._offset[1] + this.zoom * point[1]);
-      if ( ! this.boundaries) {
-        this.boundaries = [x, y, x, y];
+      if ( ! this._outerBoundaries) {
+        this._outerBoundaries = [x, y, x, y];
       } else {
-        this.boundaries[0] = Math.min(this.boundaries[0], x);
-        this.boundaries[1] = Math.min(this.boundaries[1], y);
-        this.boundaries[2] = Math.max(this.boundaries[2], x);
-        this.boundaries[3] = Math.max(this.boundaries[3], y);
+        this._outerBoundaries[0] = Math.min(this._outerBoundaries[0], x);
+        this._outerBoundaries[1] = Math.min(this._outerBoundaries[1], y);
+        this._outerBoundaries[2] = Math.max(this._outerBoundaries[2], x);
+        this._outerBoundaries[3] = Math.max(this._outerBoundaries[3], y);
       }
       return [x, y];
     },
 
+    // [left, top, width, height]
+    trackRect: function(coordinates) {
+      this._objectBoundaries.push(coordinates);
+      this.trackPoint(
+        [coordinates.left,
+         coordinates.top]);
+      this.trackPoint(
+        [coordinates.left + coordinates.width,
+         coordinates.top + coordinates.height]);
+    },
+
     circle: function(radius) {
-      var newPoint = ([
+      var rect = [
         this.point[0] - radius,
-        this.point[1] - radius]);
-      var newPoint2 = ([
-        this.point[0] + radius,
-        this.point[1] + radius]);
-      this.trackPoint(newPoint);
-      this.trackPoint(newPoint2);
+        this.point[1] - radius,
+        radius * 2,
+        radius * 2
+      ];
+      this.trackRect(rect);
     },
 
     rect: function(width, height, style) {
@@ -286,6 +286,25 @@ pl.Compass.prototype = pl.util.extend(
       this.trackPoint(this.point);
       this.move(length, direction);
       this.trackPoint(this.point);
+    },
+
+    _walker: function(pattern) {
+      // console.log(pattern);
+      var self = this;
+      pattern.forEach(
+        function(stamp) {
+          if (typeof stamp[0] === 'number') {
+            for (var i = 0; i < stamp[0]; i++) {
+              self._walker(stamp[1]);
+            }
+          } else {
+            self[stamp[0]].apply(self, stamp.slice(1));
+          }}); },
+
+    calculateBoundaries: function(composition) {
+      this.reset();
+      this._walker(composition);
+      return this._outerBoundaries;
     }
 
   });
@@ -364,12 +383,13 @@ pl.RaphaelBrush.prototype = pl.util.extend(
 
 // -----------------------------------------------------------------------------
 
-pl.Generator = function() {};
+pl.Generator = function() {
+  this.depth = 3;
+  this.sequencesLength = 17;
+};
 
 pl.Generator.prototype = {
   constructor: pl.Generator,
-  depth: 3,
-  sequencesLength: 17,
 
   maybeRange: function(thing) {
     if (thing instanceof Array) {
@@ -615,7 +635,7 @@ window.requestAnimFrame = (function(){
 // -----------------------------------------------------------------------------
 
 var generator = new pl.Generator(),
-    sequences,
+    composition,
     ticket,
     brush = new pl.RaphaelBrush(),
     running = true;
@@ -643,9 +663,9 @@ function refresh() {
   if (document.body.className !== 'hidden' && running) {
     ticket = pl.util.makeTicket();
     SeedRandom.seed(ticket);
-    sequences = generator.make();
+    composition = generator.make();
     zoomLevel = 0;
-    brush.drawSequence(sequences);
+    brush.drawComposition(composition);
     ticketInput.value = ticket;
   }
 }
@@ -669,17 +689,17 @@ document.getElementById('ticket')
       if (value.length === 4 && value !== ticket) {
         ticket = value;
         SeedRandom.seed(ticket);
-        sequences = generator.make();
-        brush.drawSequence(sequences);
+        composition = generator.make();
+        brush.drawComposition(composition);
       }}
   });
 
 // (function () {
 //   SeedRandom.seed('test');
-//   sequences = generator.make();
-//   brush.drawSequence(sequences);
+//   composition = generator.make();
+//   brush.drawComposition(composition);
 // } ());
 
-refresh();
+// refresh();
 // Uncomment on a fast machine
 // zoom();
