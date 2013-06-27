@@ -190,15 +190,43 @@ describe('sequenceFactory', function() {
 // -----------------------------------------------------------------------------
 
 describe("Generator", function() {
-  generator   = new pl.Generator();
+  generator = new pl.Generator();
   generator.sequencesLength = 4;
-  generator.depth = 2;
+  generator.depth = 5;
   composition = generator.make();
   it("should create valid compositions", function() {
     expect(plt.isSequenceValid(composition))
       .toBeTruthy();
-  }
-    );
+  });
+});
+
+// -----------------------------------------------------------------------------
+
+describe("Compass", function() {
+  var compass = new pl.Compass(),
+      outerBoundaries,
+      composition;
+  window.compass = compass;
+  compass.zoom = 1;
+  compass.line(5, 'left');
+  outerBoundaries = compass.getOuterBoundaries();
+  it('When a line is drawn the boundaries shoudld be adjusted').
+    expect(outerBoundaries[0] === -5 &&
+           outerBoundaries[1] === 0 &&
+           outerBoundaries[2] === 0 &&
+           outerBoundaries[3] === 0
+          ).toBeTruthy();
+  composition = [
+    ["line",5, "left", {"stroke-width":2}],
+    ["circle",8, {"stroke-width":0}]
+  ];
+  compass.measure(composition);
+  outerBoundaries = compass.getOuterBoundaries();
+  it('All boundaries should be numbers')
+    .expect(outerBoundaries.every(function(boundary) {
+      return (typeof boundary === 'number') &&
+        ! isNaN(boundary);
+    }));
 });
 
 // -----------------------------------------------------------------------------

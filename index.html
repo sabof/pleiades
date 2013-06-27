@@ -34,32 +34,10 @@ html {
         <script src="lib/seedrandom.js"></script>
         <script src="pleiades.js"></script>
 
-        <script src="jasmine-standalone-1.3.1/lib/jasmine-1.3.1/jasmine.js"></script>
-        <script src="test.js"></script>
 <script>
 
-var generator = new pl.Generator(),
-    composition,
-    ticket,
-    brush = new pl.RaphaelBrush(),
+var generator, composition, ticket, brush,
     running = true;
-
-brush.init();
-
-var zoomLevel = 0,
-    zoomSpeed = 5;
-
-function zoom() {
-  zoomLevel++;
-  window.requestAnimFrame(zoom);
-  brush.paper.setViewBox(
-    zoomLevel * zoomSpeed,
-    zoomLevel * zoomSpeed,
-    window.innerWidth - zoomLevel * 2 * zoomSpeed,
-    window.innerHeight - zoomLevel * 2 * zoomSpeed,
-    true
-  );
-}
 
 function refresh() {
   var ticketInput = document.getElementById('ticket');
@@ -74,7 +52,8 @@ function refresh() {
   }
 }
 
-document.getElementById('ticket')
+function initUI() {
+  document.getElementById('ticket')
   .addEventListener('focus', function() {
     running = false;
   });
@@ -97,16 +76,29 @@ document.getElementById('ticket')
         brush.drawComposition(composition);
       }}
   });
+}
 
-(function () {
+function init() {
+  initUI();
+  brush = new pl.RaphaelBrush();
+  brush.init();
+  generator = new pl.Generator()
+}
+
+switch (2) {
+  case 1:
   SeedRandom.seed('test');
+  init();
   composition = generator.make();
   brush.drawComposition(composition);
-} ());
+  break;
 
-// refresh();
-// Uncomment on a fast machine
-// zoom();
+  case 2:
+  init();
+  refresh();
+  break;
+}
+
 </script>
     </body>
 </html>

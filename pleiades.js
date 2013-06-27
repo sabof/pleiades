@@ -87,6 +87,12 @@ pl.util = {
         .toString(16)
         .toUpperCase(),
       4);
+  },
+
+  objectsEqual: function(a, b) {
+    var aKeys = Object.keys(a);
+    var bKeys = Object.keys(a);
+    return true;
   }
 };
 
@@ -186,9 +192,8 @@ pl.Brush.prototype = {
               ); }}); }
 
     this.reset();
-    var outerBoundaries = this.compass.calculateBoundaries(
-      composition
-    );
+    this.compass.measure(composition);
+    var outerBoundaries = this.compass.getOuterBoundaries();
     imageCenter = [
       (outerBoundaries[0] + outerBoundaries[2]) / 2,
       (outerBoundaries[1] + outerBoundaries[3]) / 2
@@ -245,11 +250,11 @@ pl.Compass.prototype = pl.util.extend(
     trackRect: function(coordinates) {
       this._objectBoundaries.push(coordinates);
       this.trackPoint(
-        [coordinates.left,
-         coordinates.top]);
+        [coordinates[0],
+         coordinates[1]]);
       this.trackPoint(
-        [coordinates.left + coordinates.width,
-         coordinates.top + coordinates.height]);
+        [coordinates[0] + coordinates[2],
+         coordinates[1] + coordinates[3]]);
     },
 
     circle: function(radius) {
@@ -302,12 +307,17 @@ pl.Compass.prototype = pl.util.extend(
             self[stamp[0]].apply(self, stamp.slice(1));
           }}); },
 
-    calculateBoundaries: function(composition) {
+    measure: function(composition) {
       this.reset();
       this._walker(composition);
+    },
+
+    getOuterBoundaries: function() {
+      if ( ! this._outerBoundaries) {
+        throw new Error('Boundaries not calculated');
+      }
       return this._outerBoundaries;
     }
-
   });
 
 // -----------------------------------------------------------------------------
@@ -324,6 +334,11 @@ pl.RaphaelBrush.prototype = pl.util.extend(
         window.innerWidth,
         window.innerHeight
       );
+    },
+
+    destroy: function() {
+      var canvas = this.paper.canvas;
+      canvas.parentNode.removeChild(canvas);
     },
 
     reset: function() {
@@ -443,8 +458,8 @@ pl.stampFactory = {
     wheelLength = wheel.length;
     this.make = function(option) {
       var object = option ? this.recipes[option] :
-          wheel[this.random(wheelLength)],
-          result = object.func.call(this);
+          wheel[this.random(wheelLength)];
+      var result = object.func.call(this);
       return result;
     };
   },
