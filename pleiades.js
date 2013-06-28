@@ -327,7 +327,7 @@ var pl = {debug: false};
           windowTranslatedRect[1] + this._offset[1],
           windowTranslatedRect[2],
           windowTranslatedRect[3] ])
-          .attr({'stroke-width': 2, 'stroke': 'blue'});
+          .attr({'stroke-width': 4, 'stroke': 'blue'});
       }
       var visible = this.compass._objectRects.filter(function(rect) {
         return rectanglesOverlap(rect, windowTranslatedRect);
@@ -357,7 +357,9 @@ var pl = {debug: false};
       // brush.paper.circle(x +  -608, y + -229, 2).attr({'fill': 'red'});
 
       if (! visible.length) {
-        console.log('invisible');
+        if (pl.debug) {
+          console.log('invisible');
+        }
         return false;
       } else {
         this.mask = windowTranslatedRect;
@@ -575,8 +577,8 @@ var pl = {debug: false};
         var newPoint = this.point;
 
         var adjPoint = this.translatePoint(this.point);
-        if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint)
-                             ))
+        if (rectanglesOverlap(
+          this.mask, pointsToRect(oldPoint, newPoint)))
         {
           this.paper.rect.apply(
             this.paper,
