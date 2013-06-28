@@ -638,7 +638,7 @@ pl.stampFactory = {
         var random = this.random;
         return [
           'circle',
-          random(10),
+          random(2, 5),
           { 'stroke-width': 2,
             'fill-opacity': random(),
             'fill': random('color') } ]; }
