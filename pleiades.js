@@ -240,26 +240,30 @@ var pl = {};
       }
     },
 
+    _walker: function(composition) {
+      var self = this;
+      composition.forEach(
+        function(stamp) {
+          if (typeof stamp === 'function') {
+            stamp.call(self);
+          } else if (typeof stamp[0] === 'number') {
+            for (var i = 0; i < stamp[0]; i++) {
+              self._walker(stamp[1]);
+            }
+          } else {
+            self[stamp[0]]
+              .apply(
+                self,
+                stamp.slice(1)
+              ); }});
+    },
+
     drawComposition: function(composition) {
       var self = this,
           windowCenter = [
             window.innerWidth / 2,
             window.innerHeight / 2 ],
           imageCenter;
-
-      function walker(composition) {
-        composition.forEach(
-          function(stamp) {
-            if (typeof stamp[0] === 'number') {
-              for (var i = 0; i < stamp[0]; i++) {
-                walker(stamp[1]);
-              }
-            } else {
-              self[stamp[0]]
-                .apply(
-                  self,
-                  stamp.slice(1)
-                ); }}); }
 
       this.reset();
       this.compass.measure(composition);
@@ -305,7 +309,7 @@ var pl = {};
       } else {
         this.mask = windowTranslatedRect;
       }
-      walker(composition);
+      this._walker(composition);
       if (this._showBoundingBox) {
         this._drawBoundingBox();
       }
@@ -421,7 +425,9 @@ var pl = {};
         var self = this;
         pattern.forEach(
           function(stamp) {
-            if (typeof stamp[0] === 'number') {
+            if (typeof stamp === 'function') {
+              stamp.call(self);
+            } else if (typeof stamp[0] === 'number') {
               for (var i = 0; i < stamp[0]; i++) {
                 self._walker(stamp[1]);
               }
@@ -522,7 +528,7 @@ var pl = {};
 
         var adjPoint = this.adjustPoint(this.point);
         if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint)
-        ))
+                             ))
         {
           this.paper.rect.apply(
             this.paper,
@@ -556,55 +562,6 @@ var pl = {};
       }
     }
   );
-
-  // -----------------------------------------------------------------------------
-
-  pl.Generator = function() {
-    this.depth = 5;
-    this.sequencesLength = 15;
-  };
-
-  pl.Generator.prototype = {
-    constructor: pl.Generator,
-
-    maybeRange: function(thing) {
-      if (thing instanceof Array) {
-        return random(thing);
-      } else {
-        return thing;
-      }},
-
-    maybeCall: function(thing) {
-      return (thing instanceof Function) ?
-        thing() :
-        thing; },
-
-    make: function() {
-      var sequences = [];
-      // for (var i = 0, iL = this.depth; i < iL; i++) {
-      for (var i = this.depth - 1; i >= 0; i--) {
-        var currentSequence = [];
-
-        if (i <= 1) {
-          pl.stampFactory.recipes.largeCircle.probability = 17;
-        } else {
-          pl.stampFactory.recipes.largeCircle.probability = 0;
-        }
-        pl.stampFactory.makeMake();
-
-        for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
-          currentSequence.push(pl.stampFactory.make());
-        }
-        if (sequences.length) {
-          currentSequence.splice(
-            random(sequences.length),
-            0, [ 2 + random(2) * 2, sequences[0] ]);
-        }
-        sequences.unshift(currentSequence);
-      }
-      return [[4, sequences[0]]];
-    }
-  };
 
   // -----------------------------------------------------------------------------
 
@@ -806,7 +763,76 @@ var pl = {};
       }
     }
   };
+
+  // -----------------------------------------------------------------------------
+
+  pl.Generator = function() {
+    this.depth = 5;
+    this.sequencesLength = 15;
+  };
+
+  pl.Generator.prototype = {
+    constructor: pl.Generator,
+
+    maybeRange: function(thing) {
+      if (thing instanceof Array) {
+        return random(thing);
+      } else {
+        return thing;
+      }},
+
+    maybeCall: function(thing) {
+      return (thing instanceof Function) ?
+        thing() :
+        thing; },
+
+    make: function() {
+      var sequences = [];
+      // for (var i = 0, iL = this.depth; i < iL; i++) {
+      function makeZoomer(sequence) {
+        return function() {
+          var originalZoom = this.zoom;
+          var limit = random(1, 3) * 2;
+          for (var i = - limit / 2; i < limit / 2; i++) {
+            this.zoom = originalZoom +
+              originalZoom * i * 0.3;
+            this._walker(sequence);
+          }
+          this.zoom = originalZoom;
+        };
+      }
+
+      for (var i = this.depth - 1; i >= 0; i--) {
+        var currentSequence = [];
+
+        if (i <= 1) {
+          pl.stampFactory.recipes.largeCircle.probability = 17;
+        } else {
+          pl.stampFactory.recipes.largeCircle.probability = 0;
+        }
+        pl.stampFactory.makeMake();
+
+        for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
+          currentSequence.push(pl.stampFactory.make());
+        }
+        if (sequences.length) {
+          if (random(3) === 0) {
+            currentSequence.splice(
+              random(sequences.length),
+              0, makeZoomer(sequences[0]));
+          } else {
+            currentSequence.splice(
+              random(sequences.length),
+              0, [ 2 + random(2) * 2, sequences[0] ]);
+          }
+        }
+        sequences.unshift(currentSequence);
+      }
+      return [[4, sequences[0]]];
+    }
+  };
 }());
+
 // -----------------------------------------------------------------------------
 
 window.requestAnimFrame = (function(){
