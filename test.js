@@ -77,8 +77,11 @@ function test_centerer() {
 }
 
 plt.isStampValid = function(pattern) {
-  if ( ! pattern instanceof Array) {
-    throw new Error('A stamp must be an array');
+  if (typeof pattern === 'function') {
+    return true;
+  }
+  if ( ! (pattern instanceof Array)) {
+    throw new Error('A stamp must be an array, or a function');
   }
   if (typeof pattern[0] === 'number') {
     if ( ! pattern[1] instanceof Array) {
@@ -87,12 +90,14 @@ plt.isStampValid = function(pattern) {
     return this.isSequenceValid.call(this, pattern[1]);
     // return true;
   } else if (typeof pattern[0] === 'string') {
-    if (['move', 'line', 'circle', 'rect', 'rotate', 'reflect'].indexOf(pattern[0]) === -1) {
+    if (['move', 'line', 'circle', 'rect', 'rotate', 'reflect']
+        .indexOf(pattern[0]) === -1)
+    {
       throw new Error('Invalid keyword: ' + pattern[0]);
     }
   } else {
-    // console.log(pattern);
-    throw new Error('The first member of a stamp should be a number or a string');
+    throw new Error('The first member of a stamp should be a number or a string: ' +
+                   pattern);
   }
   return true;
 }.bind(plt);
@@ -200,7 +205,8 @@ describe("Stamp validator", function() {
     '["line", 6, "right", {"stroke-width":3}]',
     "[4, [['rect', -5, 5]]]",
     "['rotate', true]",
-    '["rect",-2,9, {"stroke-width": 2, "stroke-opacity": 1, "fill-opacity": 1, "fill": "#0000fb"}]'
+    '["rect",-2,9, {"stroke-width": 2}]',
+    '(function () {})'
   ];
   var invalidStamps = [
     "[]",
@@ -272,6 +278,9 @@ describe("Compass", function() {
       composition;
   window.compass = compass;
   compass.zoom = 1;
+
+  // ---------------------------------------------------------------------------
+
   compass.line(5, 'left');
   outerBoundaries = compass.getOuterRect();
   it('When a line is drawn the boundaries shoudld be adjusted').
@@ -280,6 +289,9 @@ describe("Compass", function() {
            outerBoundaries[2] === 5 &&
            outerBoundaries[3] === 0
           ).toBeTruthy();
+
+  // ---------------------------------------------------------------------------
+
   composition = [
     ["line",5, "left", {"stroke-width":2}],
     ["circle",8, {"stroke-width":0}]
@@ -290,7 +302,35 @@ describe("Compass", function() {
     .expect(outerBoundaries.every(function(boundary) {
       return (typeof boundary === 'number') &&
         ! isNaN(boundary);
-    }));
+    })).toBeTruthy();
+
+  // ---------------------------------------------------------------------------
+
+  it('Rotating a sequence should levave the point in the same place')
+    .expect(function() {
+      composition = [
+        [['rotate', true], ['move', 10, 'right']],
+        [['rect', 3, 3, {'fill' : '#aa0044'}]
+        ] ];
+      composition[0].push(generator._makeZoomer(composition[1]));
+      composition.unshift([4, composition[0]]);
+      compass.measure();
+      return compass.point[0] === 0 && compass.point[1] === 0;
+    }).toBeTruthy();
+
+  // ---------------------------------------------------------------------------
+
+  composition = [[4, [['rect', 5, 5]]]];
+  compass.measure(composition);
+  var outerRect = compass.getOuterRect();
+  describe('Four 5 pixel rectangles one after the other', function() {
+    it(' should have 20 pixels width')
+      .expect(outerRect[2])
+      .toEqual(20);
+    it(' should have 20 pixels height')
+      .expect(outerRect[3])
+      .toEqual(20);
+  });
 });
 
 // -----------------------------------------------------------------------------
@@ -298,7 +338,7 @@ describe("Compass", function() {
 describe("RaphaelBrush", function() {
   brush = new pl.RaphaelBrush();
   brush.paper = new MockPaper();
-  jasmine.log('log test');
+  // jasmine.log('log test');
   it("shouldn't throw", function() {
     expect(function () {
       try {
