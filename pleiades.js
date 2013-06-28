@@ -47,12 +47,21 @@ var pl = {debug: false};
         min);
   };
 
-  var rotateArray = function(array, reverse) {
+  var rotateArray = function(array, ammount) {
+    if (ammount === undefined) {
+      ammount = 1;
+    }
     array = array.slice(0);
-    if (reverse) {
-      array.push(array.shift());
+    if (ammount < 0) {
+      while (ammount !== 0) {
+        array.push(array.shift());
+        ammount++;
+      }
     } else {
-      array.unshift(array.pop());
+      while (ammount !== 0) {
+        array.unshift(array.pop());
+        ammount--;
+      }
     }
     return array;
   };
@@ -246,7 +255,7 @@ var pl = {debug: false};
     },
 
     rotate: function(reverse) {
-      this.directions = rotateArray(this.directions, reverse);
+      this.directions = rotateArray(this.directions, reverse ? -1 : undefined);
     },
 
     reflect: function(across) {
@@ -321,14 +330,6 @@ var pl = {debug: false};
               this));
       // console.log(windowTranslatedRect);
       // console.log(this.compass._objectRects);
-      if (pl.debug) {
-        this.paper.rect.apply(this.paper, [
-          windowTranslatedRect[0] + this._offset[0],
-          windowTranslatedRect[1] + this._offset[1],
-          windowTranslatedRect[2],
-          windowTranslatedRect[3] ])
-          .attr({'stroke-width': 4, 'stroke': 'blue'});
-      }
       var visible = this.compass._objectRects.filter(function(rect) {
         return rectanglesOverlap(rect, windowTranslatedRect);
       });
@@ -363,6 +364,21 @@ var pl = {debug: false};
         return false;
       } else {
         this.mask = windowTranslatedRect;
+        // this.mask = [
+        //   windowTranslatedRect[0] + 200,
+        //   windowTranslatedRect[1] + 200,
+        //   windowTranslatedRect[2] - 400,
+        //   windowTranslatedRect[3] - 400
+        // ];
+      }
+
+      if (pl.debug) {
+        this.paper.rect.apply(this.paper, [
+          this.mask[0] + this._offset[0],
+          this.mask[1] + this._offset[1],
+          this.mask[2],
+          this.mask[3] ])
+          .attr({'stroke-width': 4, 'stroke': 'blue'});
       }
       this._walker(composition);
       if (pl.debug) {
@@ -545,17 +561,21 @@ var pl = {debug: false};
       },
 
       line: function(length, direction, style) {
+        var oldPoint = this.point.slice(0);
         var adjOldPoint = this.translatePoint(this.point);
         this.move(length, direction);
-        var adjPoint = this.translatePoint(this.point);
-        var pathString = (
-          'M' + adjOldPoint[0] +
-            ' ' + adjOldPoint[1] +
-            'L' + adjPoint[0] +
-            ' ' + adjPoint[1]
-        );
-        this.paper.path(pathString)
-          .attr(style);
+        if (rectanglesOverlap(this.mask, oldPoint) ||
+            rectanglesOverlap(this.mask, this.point)) {
+          var adjPoint = this.translatePoint(this.point);
+          var pathString = (
+            'M' + adjOldPoint[0] +
+              ' ' + adjOldPoint[1] +
+              'L' + adjPoint[0] +
+              ' ' + adjPoint[1]
+          );
+          this.paper.path(pathString)
+            .attr(style);
+        }
       },
 
       rect: function(width, height, style) {
@@ -577,9 +597,7 @@ var pl = {debug: false};
         var newPoint = this.point;
 
         var adjPoint = this.translatePoint(this.point);
-        if (rectanglesOverlap(
-          this.mask, pointsToRect(oldPoint, newPoint)))
-        {
+        if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint))) {
           this.paper.rect.apply(
             this.paper,
             pointsToRect(adjOldPoint, adjPoint)
@@ -594,6 +612,7 @@ var pl = {debug: false};
           radius * 2 * this.zoom,
           radius * 2 * this.zoom
         ];
+        // The mask is unadjusted
         if (rectanglesOverlap(rect, this.mask)) {
           var adjPoint = this.translatePoint(this.point);
           this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
@@ -616,6 +635,15 @@ var pl = {debug: false};
   // -----------------------------------------------------------------------------
 
   pl.stampFactory = {
+    reset: function() {
+      this.recipes.largeCircle.iterator =
+        makeLooper(rotateArray(['.', 'none', '--', 'none'], random(4)));
+      this.makeMake();
+    },
+
+    init: function() {
+      this.reset();
+    },
 
     makeMake: function() {
       var self = this,
@@ -635,7 +663,7 @@ var pl = {debug: false};
       this.make = function(option) {
         var object = option ? this.recipes[option] :
             wheel[random(wheelLength)];
-        var result = object.func.call(this);
+        var result = object.func();
         return result;
       };
     },
@@ -695,30 +723,26 @@ var pl = {debug: false};
       largeCircle: {
         probability: 2,
         maxLength: 1,
-        func: (function() {
-          var iterator = makeLooper(['.', 'none', '--', 'none']);
-          return function() {
-            var dasharray = iterator();
-            var circle = [
-              'circle',
-              random(10, 300),
-              { 'stroke-width': (dasharray === 'none') ? 1 : 2,
-                'stroke-dasharray' : dasharray,
-                'stroke': 'white'
-                // 'stroke-opacity': 1
-                // 'fill-opacity': random(),
-                // 'fill': random('color')
-              } ];
-            circle.dontMeasure = true;
-            return circle; };
-
-        }())
-
+        func: function() {
+          var dasharray = this.iterator();
+          var circle = [
+            'circle',
+            random(10, 300),
+            { 'stroke-width': (dasharray === 'none') ? 1 : 2,
+              'stroke-dasharray' : dasharray,
+              'stroke': 'white'
+              // 'stroke-opacity': 1
+              // 'fill-opacity': random(),
+              // 'fill': random('color')
+            } ];
+          circle.dontMeasure = true;
+          return circle;
+        }
       },
 
       smallCircle: {
-        // probability: 3,
-        probability: 30,
+        probability: 3,
+        // probability: 30,
         maxLength: 1,
         func: function() {
           return [
@@ -881,7 +905,7 @@ var pl = {debug: false};
         } else {
           pl.stampFactory.recipes.largeCircle.probability = 0;
         }
-        pl.stampFactory.makeMake();
+        pl.stampFactory.reset();
 
         for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
           currentSequence.push(pl.stampFactory.make());
