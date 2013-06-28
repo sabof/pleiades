@@ -723,6 +723,8 @@ var pl = {debug: false};
       largeCircle: {
         probability: 2,
         maxLength: 1,
+        iterator: makeLooper(rotateArray(['.', 'none', '--', 'none'],
+                                         random(4))),
         func: function() {
           var dasharray = this.iterator();
           var circle = [
