@@ -104,6 +104,17 @@ var pl = {};
     return original;
   };
 
+  function makeLooper(array) {
+    var activeArray;
+    return function() {
+      if (! activeArray || activeArray.length === 0) {
+        activeArray = array.slice(0);
+      }
+      return activeArray.pop();
+    };
+  }
+
+
   pl.util = {
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
@@ -663,18 +674,24 @@ var pl = {};
       largeCircle: {
         probability: 2,
         maxLength: 1,
-        func: function() {
-          var width = random(1, 3);
-          return [
-            'circle',
-            random(30, 1000),
-            { 'stroke-width': width,
-              'stroke-dasharray' : (width === 1) ? 'none' : random(['- ', 'none']),
-              'stroke': 'white'
-              // 'stroke-opacity': 1
-              // 'fill-opacity': random(),
-              // 'fill': random('color')
-            } ]; }
+        func: (function() {
+          var iterator = makeLooper(['.', 'none', '--', 'none']);
+          return function() {
+            var dasharray = iterator();
+            // var width = random(1, 3);
+            return [
+              'circle',
+              random(30, 1000),
+              { 'stroke-width': (dasharray === 'none') ? 1 : 2,
+                'stroke-dasharray' : dasharray,
+                'stroke': 'white'
+                // 'stroke-opacity': 1
+                // 'fill-opacity': random(),
+                // 'fill': random('color')
+              } ]; };
+
+        }())
+
       },
 
       smallCircle: {
@@ -821,9 +838,18 @@ var pl = {};
     },
 
     make: function() {
-      var sequences = [];
+      var sequences = [],
+          largeCircleLimit = 2,
+          oriLC = pl.stampFactory.recipes.largeCircle.func;
       // for (var i = 0, iL = this.depth; i < iL; i++) {
-
+      pl.stampFactory.recipes.largeCircle.func = function () {
+        if (largeCircleLimit) {
+          largeCircleLimit--;
+          return oriLC.call(this);
+        } else {
+          return [0, []];
+        }
+      };
       for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
 
@@ -850,6 +876,7 @@ var pl = {};
         }
         sequences.unshift(currentSequence);
       }
+      pl.stampFactory.recipes.largeCircle.func = oriLC;
       return [[4, sequences[0]]];
     }
   };
