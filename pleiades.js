@@ -29,7 +29,7 @@ var pl = {};
         50);
     }
     if (min === 'direction') {
-      return random(['up', 'down', 'right', 'left']);
+      return random(['forward', 'back', 'right', 'left']);
     }
     if (min === undefined &&
         max === undefined) {
@@ -104,6 +104,17 @@ var pl = {};
     return original;
   };
 
+  function makeLooper(array) {
+    var activeArray;
+    return function() {
+      if (! activeArray || activeArray.length === 0) {
+        activeArray = array.slice(0);
+      }
+      return activeArray.pop();
+    };
+  }
+
+
   pl.util = {
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
@@ -174,7 +185,7 @@ var pl = {};
     this.compass = compass || new pl.Compass();
     this.point = [0, 0];
     this._offset = [0, 0];
-    this.directions = ['up', 'right', 'down', 'left'];
+    this.directions = ['forward', 'right', 'back', 'left'];
     this.zoom = 3;
     this._showBoundingBox = false;
   };
@@ -193,21 +204,23 @@ var pl = {};
       ];
       var index = this.directions.indexOf(direction);
       point = [
-        point[0] + table[index][0] * length,
-        point[1] + table[index][1] * length
+        point[0] + table[index][0] * length * this.zoom,
+        point[1] + table[index][1] * length * this.zoom
       ];
       return point;
     },
 
-    adjustPoint: function(point) {
-      var x = Math.round(this._offset[0] + this.zoom * point[0]),
-          y = Math.round(this._offset[1] + this.zoom * point[1]);
+    translatePoint: function(point) {
+      var x = Math.round(this._offset[0] + point[0]),
+          y = Math.round(this._offset[1] + point[1]);
       return [x, y];
     },
 
-    unadjustPoint: function(point) {
-      var x = Math.round((point[0] - this._offset[0]) / this.zoom),
-          y = Math.round((point[1] - this._offset[1]) / this.zoom);
+    untranslatePoint: function(point) {
+      var x = Math.round((point[0] - this._offset[0]) // / this.zoom
+                        ),
+          y = Math.round((point[1] - this._offset[1]) // / this.zoom
+                        );
       return [x, y];
     },
 
@@ -240,26 +253,30 @@ var pl = {};
       }
     },
 
+    _walker: function(composition) {
+      var self = this;
+      composition.forEach(
+        function(stamp) {
+          if (typeof stamp === 'function') {
+            stamp.call(self);
+          } else if (typeof stamp[0] === 'number') {
+            for (var i = 0; i < stamp[0]; i++) {
+              self._walker(stamp[1]);
+            }
+          } else {
+            self[stamp[0]]
+              .apply(
+                self,
+                stamp.slice(1)
+              ); }});
+    },
+
     drawComposition: function(composition) {
       var self = this,
           windowCenter = [
             window.innerWidth / 2,
             window.innerHeight / 2 ],
           imageCenter;
-
-      function walker(composition) {
-        composition.forEach(
-          function(stamp) {
-            if (typeof stamp[0] === 'number') {
-              for (var i = 0; i < stamp[0]; i++) {
-                walker(stamp[1]);
-              }
-            } else {
-              self[stamp[0]]
-                .apply(
-                  self,
-                  stamp.slice(1)
-                ); }}); }
 
       this.reset();
       this.compass.measure(composition);
@@ -281,21 +298,27 @@ var pl = {};
         Math.round(windowCenter[0] - imageCenter[0]),
         Math.round(windowCenter[1] - imageCenter[1])
       ];
-      var windowTranslatedRect = (
+      var windowTranslatedRect =
         pointsToRect.apply(
           null,
           rectToPoints([0, 0, window.innerWidth, window.innerHeight])
-            .map(this.unadjustPoint, this))
-      );
+            .map(
+              function(point) {
+                return [
+                  point[0] - this._offset[0],
+                  point[1] - this._offset[1]
+                ];
+              },
+              this));
       // console.log(windowTranslatedRect);
       // console.log(this.compass._objectRects);
 
       // this.paper.rect.apply(this.paper, [
-      //   windowTranslatedRect[0] * this.zoom + this._offset[0],
-      //   windowTranslatedRect[1] * this.zoom + this._offset[1],
-      //   windowTranslatedRect[2] * this.zoom,
-      //   windowTranslatedRect[3] * this.zoom
-      // ]).attr({'stroke-width': 2, 'stroke': 'blue'});
+      //   windowTranslatedRect[0] + this._offset[0],
+      //   windowTranslatedRect[1] + this._offset[1],
+      //   windowTranslatedRect[2],
+      //   windowTranslatedRect[3] ])
+      //   .attr({'stroke-width': 2, 'stroke': 'blue'});
 
       if ( ! this.compass._objectRects.some(function(boundaryRect) {
         return rectanglesOverlap(boundaryRect, windowTranslatedRect);
@@ -305,7 +328,7 @@ var pl = {};
       } else {
         this.mask = windowTranslatedRect;
       }
-      walker(composition);
+      this._walker(composition);
       if (this._showBoundingBox) {
         this._drawBoundingBox();
       }
@@ -333,8 +356,6 @@ var pl = {};
       },
 
       trackPoint: function(point) {
-        var x = point[0],
-            y = point[1];
         if (point.length !== 2) {
           throw new Error(
             'Wrong number of coordinates: ' +
@@ -346,6 +367,9 @@ var pl = {};
           'Some point members are not numbers: ' +
             JSON.stringify(point));
         }
+
+        var x = point[0],
+            y = point[1];
 
         if ( ! this._outerBoundaries) {
           this._outerBoundaries = [x, y, x, y];
@@ -373,7 +397,11 @@ var pl = {};
           'Some rect are not numbers: ' +
             JSON.stringify(rect));
         }
-        this._objectRects.push(rect);
+        this._objectRects.push(rect.map(
+          function(num) {
+            return num * this.zoom;
+          },
+          this));
         this.trackPoint(
           [rect[0],
            rect[1]]);
@@ -384,17 +412,17 @@ var pl = {};
 
       circle: function(radius) {
         var rect = [
-          this.point[0] - radius,
-          this.point[1] - radius,
-          radius * 2,
-          radius * 2
+          this.point[0] - radius * this.zoom,
+          this.point[1] - radius * this.zoom,
+          radius * this.zoom * 2,
+          radius * this.zoom * 2
         ];
         this.trackRect(rect);
       },
 
       rect: function(width, height, style) {
         var verticalLength = Math.abs(width),
-            verticalDirection = (height > 0) ? 'down' : 'up',
+            verticalDirection = (height > 0) ? 'back' : 'forward',
             horizontalLength = Math.abs(height),
             horizontalDirection = (width > 0) ? 'right' : 'left',
             oldPoint = this.point.slice(0);
@@ -421,7 +449,9 @@ var pl = {};
         var self = this;
         pattern.forEach(
           function(stamp) {
-            if (typeof stamp[0] === 'number') {
+            if (typeof stamp === 'function') {
+              stamp.call(self);
+            } else if (typeof stamp[0] === 'number') {
               for (var i = 0; i < stamp[0]; i++) {
                 self._walker(stamp[1]);
               }
@@ -442,14 +472,19 @@ var pl = {};
         if ( ! this._outerBoundaries) {
           throw new Error('Boundaries not calculated');
         }
-
         var ob = this._outerBoundaries,
             points = [
               this._outerBoundaries.slice(0, 2),
               this._outerBoundaries.slice(2, 4)
             ];
         if (adjusted) {
-          points = points.map(this.adjustPoint, this);
+          points = points.map(function(point) {
+            return [
+              point[0] + this._offset[0],
+              point[1] + this._offset[1]
+            ];
+          },
+                              this);
         }
         return points[0].concat(
           [points[1][0] - points[0][0],
@@ -489,9 +524,9 @@ var pl = {};
       },
 
       line: function(length, direction, style) {
-        var adjOldPoint = this.adjustPoint(this.point);
+        var adjOldPoint = this.translatePoint(this.point);
         this.move(length, direction);
-        var adjPoint = this.adjustPoint(this.point);
+        var adjPoint = this.translatePoint(this.point);
         var pathString = (
           'M' + adjOldPoint[0] +
             ' ' + adjOldPoint[1] +
@@ -504,9 +539,9 @@ var pl = {};
 
       rect: function(width, height, style) {
         var oldPoint = this.point.slice(0),
-            adjOldPoint = this.adjustPoint(oldPoint),
+            adjOldPoint = this.translatePoint(oldPoint),
             verticalLength = Math.abs(width),
-            verticalDirection = (height > 0) ? 'down' : 'up',
+            verticalDirection = (height > 0) ? 'back' : 'forward',
             horizontalLength = Math.abs(height),
             horizontalDirection = (width > 0) ? 'right' : 'left';
 
@@ -520,9 +555,9 @@ var pl = {};
           verticalDirection);
         var newPoint = this.point;
 
-        var adjPoint = this.adjustPoint(this.point);
+        var adjPoint = this.translatePoint(this.point);
         if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint)
-        ))
+                             ))
         {
           this.paper.rect.apply(
             this.paper,
@@ -533,14 +568,14 @@ var pl = {};
 
       circle: function(radius, style) {
         var rect = [
-          this.point[0] - radius,
-          this.point[1] - radius,
-          radius * 2,
-          radius * 2
+          this.point[0] - radius * this.zoom,
+          this.point[1] - radius * this.zoom,
+          radius * 2 * this.zoom,
+          radius * 2 * this.zoom
         ];
         if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this.adjustPoint(this.point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
+          var adjPoint = this.translatePoint(this.point);
+          this.paper.circle(adjPoint[0], adjPoint[1], radius)
             .attr(style);
         }
       },
@@ -556,55 +591,6 @@ var pl = {};
       }
     }
   );
-
-  // -----------------------------------------------------------------------------
-
-  pl.Generator = function() {
-    this.depth = 5;
-    this.sequencesLength = 15;
-  };
-
-  pl.Generator.prototype = {
-    constructor: pl.Generator,
-
-    maybeRange: function(thing) {
-      if (thing instanceof Array) {
-        return random(thing);
-      } else {
-        return thing;
-      }},
-
-    maybeCall: function(thing) {
-      return (thing instanceof Function) ?
-        thing() :
-        thing; },
-
-    make: function() {
-      var sequences = [];
-      // for (var i = 0, iL = this.depth; i < iL; i++) {
-      for (var i = this.depth - 1; i >= 0; i--) {
-        var currentSequence = [];
-
-        if (i <= 1) {
-          pl.stampFactory.recipes.largeCircle.probability = 17;
-        } else {
-          pl.stampFactory.recipes.largeCircle.probability = 0;
-        }
-        pl.stampFactory.makeMake();
-
-        for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
-          currentSequence.push(pl.stampFactory.make());
-        }
-        if (sequences.length) {
-          currentSequence.splice(
-            random(sequences.length),
-            0, [ 2 + random(2) * 2, sequences[0] ]);
-        }
-        sequences.unshift(currentSequence);
-      }
-      return [[4, sequences[0]]];
-    }
-  };
 
   // -----------------------------------------------------------------------------
 
@@ -688,18 +674,24 @@ var pl = {};
       largeCircle: {
         probability: 2,
         maxLength: 1,
-        func: function() {
-          var width = random(1, 3);
-          return [
-            'circle',
-            random(30, 1000),
-            { 'stroke-width': width,
-              'stroke-dasharray' : (width === 1) ? 'none' : random(['- ', 'none']),
-              'stroke': 'white'
-              // 'stroke-opacity': 1
-              // 'fill-opacity': random(),
-              // 'fill': random('color')
-            } ]; }
+        func: (function() {
+          var iterator = makeLooper(['.', 'none', '--', 'none']);
+          return function() {
+            var dasharray = iterator();
+            // var width = random(1, 3);
+            return [
+              'circle',
+              random(30, 1000),
+              { 'stroke-width': (dasharray === 'none') ? 1 : 2,
+                'stroke-dasharray' : dasharray,
+                'stroke': 'white'
+                // 'stroke-opacity': 1
+                // 'fill-opacity': random(),
+                // 'fill': random('color')
+              } ]; };
+
+        }())
+
       },
 
       smallCircle: {
@@ -709,7 +701,7 @@ var pl = {};
           return [
             'circle',
             random(2, 5),
-            { 'stroke-width': random(2, 5),
+            { 'stroke-width': random(1, 3),
               'fill-opacity': random(),
               'fill': random('color')
             } ]; }
@@ -773,7 +765,7 @@ var pl = {};
               {'stroke-width': random(1, 5)}];
           }
 
-          var up = makeMove('up'),
+          var up = makeMove('forward'),
               left = makeMove('left'),
               right = left.slice(0);
           right[2] = 'right';
@@ -806,7 +798,90 @@ var pl = {};
       }
     }
   };
+
+  // -----------------------------------------------------------------------------
+
+  pl.Generator = function() {
+    this.depth = 5;
+    // this.depth = 3;
+    this.sequencesLength = 15;
+    // this.sequencesLength = 5;
+  };
+
+  pl.Generator.prototype = {
+    constructor: pl.Generator,
+
+    maybeRange: function(thing) {
+      if (thing instanceof Array) {
+        return random(thing);
+      } else {
+        return thing;
+      }},
+
+    maybeCall: function(thing) {
+      return (thing instanceof Function) ?
+        thing() :
+        thing; },
+
+    _makeZoomer: function(sequence) {
+      var limit = random(1, 3) * 2;
+      return function() {
+        var originalZoom = this.zoom;
+        // var limit = 4;
+        for (var i = - limit / 2; i < limit / 2; i++) {
+          this.zoom = originalZoom +
+            originalZoom * i * 0.3;
+          this._walker(sequence);
+        }
+        this.zoom = originalZoom;
+      };
+    },
+
+    make: function() {
+      var sequences = [],
+          largeCircleLimit = 2,
+          oriLC = pl.stampFactory.recipes.largeCircle.func;
+      // for (var i = 0, iL = this.depth; i < iL; i++) {
+      pl.stampFactory.recipes.largeCircle.func = function () {
+        if (largeCircleLimit) {
+          largeCircleLimit--;
+          return oriLC.call(this);
+        } else {
+          return [0, []];
+        }
+      };
+      for (var i = this.depth - 1; i >= 0; i--) {
+        var currentSequence = [];
+
+        if (i <= 1) {
+          pl.stampFactory.recipes.largeCircle.probability = 7;
+        } else {
+          pl.stampFactory.recipes.largeCircle.probability = 0;
+        }
+        pl.stampFactory.makeMake();
+
+        for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
+          currentSequence.push(pl.stampFactory.make());
+        }
+        if (sequences.length) {
+          if (random(2)) {
+            currentSequence.splice(
+              random(sequences.length),
+              0, this._makeZoomer(sequences[0]));
+          } else {
+            currentSequence.splice(
+              random(sequences.length),
+              0, [ 2 + random(2) * 2, sequences[0] ]);
+          }
+        }
+        sequences.unshift(currentSequence);
+      }
+      pl.stampFactory.recipes.largeCircle.func = oriLC;
+      return [[4, sequences[0]]];
+    }
+  };
 }());
+
 // -----------------------------------------------------------------------------
 
 window.requestAnimFrame = (function(){
