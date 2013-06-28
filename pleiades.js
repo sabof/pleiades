@@ -659,6 +659,24 @@ pl.stampFactory = {
             'fill': random('color') } ]; }
     },
 
+    gradStrip: {
+      probability: 10,
+      maxLength: 1,
+      func: function() {
+        var random = this.random,
+            dimensions = [random(1, 3), random(10, 30)],
+            oriColor = random('color');
+        if (random(2)) {
+          dimensions = pl.util.rotateArray(dimensions);
+        }
+        return ['rect', dimensions[0], dimensions[1],
+                { 'stroke-width': 1,
+                  'fill': '95-' +
+                  pl.color.vary(oriColor, 50) + ':5-' +
+                  pl.color.vary(oriColor, 50) + ':95' }];
+      }
+    },
+
     highlightRect: {
       probability: 10,
       maxLength: 1,
