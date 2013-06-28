@@ -598,8 +598,10 @@ pl.stampFactory = {
         wheelLength;
     Object.keys(this.recipes)
       .forEach(function(recipeKey) {
-        var probability = self.recipes[recipeKey]
-            .probability || 1;
+        var probability = self.recipes[recipeKey].probability;
+        if (probability === undefined) {
+          probability = 5;
+        }
         for (var i = 0; i < probability; i++) {
           wheel.push(self.recipes[recipeKey]);
         }
