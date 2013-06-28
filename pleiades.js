@@ -29,7 +29,7 @@ var pl = {};
         50);
     }
     if (min === 'direction') {
-      return random(['up', 'down', 'right', 'left']);
+      return random(['forward', 'back', 'right', 'left']);
     }
     if (min === undefined &&
         max === undefined) {
@@ -174,7 +174,7 @@ var pl = {};
     this.compass = compass || new pl.Compass();
     this.point = [0, 0];
     this._offset = [0, 0];
-    this.directions = ['up', 'right', 'down', 'left'];
+    this.directions = ['forward', 'right', 'back', 'left'];
     this.zoom = 3;
     this._showBoundingBox = false;
   };
@@ -193,21 +193,23 @@ var pl = {};
       ];
       var index = this.directions.indexOf(direction);
       point = [
-        point[0] + table[index][0] * length,
-        point[1] + table[index][1] * length
+        point[0] + table[index][0] * length * this.zoom,
+        point[1] + table[index][1] * length * this.zoom
       ];
       return point;
     },
 
-    adjustPoint: function(point) {
-      var x = Math.round(this._offset[0] + this.zoom * point[0]),
-          y = Math.round(this._offset[1] + this.zoom * point[1]);
+    translatePoint: function(point) {
+      var x = Math.round(this._offset[0] + point[0]),
+          y = Math.round(this._offset[1] + point[1]);
       return [x, y];
     },
 
-    unadjustPoint: function(point) {
-      var x = Math.round((point[0] - this._offset[0]) / this.zoom),
-          y = Math.round((point[1] - this._offset[1]) / this.zoom);
+    untranslatePoint: function(point) {
+      var x = Math.round((point[0] - this._offset[0]) // / this.zoom
+                        ),
+          y = Math.round((point[1] - this._offset[1]) // / this.zoom
+                        );
       return [x, y];
     },
 
@@ -285,21 +287,27 @@ var pl = {};
         Math.round(windowCenter[0] - imageCenter[0]),
         Math.round(windowCenter[1] - imageCenter[1])
       ];
-      var windowTranslatedRect = (
+      var windowTranslatedRect =
         pointsToRect.apply(
           null,
           rectToPoints([0, 0, window.innerWidth, window.innerHeight])
-            .map(this.unadjustPoint, this))
-      );
+            .map(
+              function(point) {
+                return [
+                  point[0] - this._offset[0],
+                  point[1] - this._offset[1]
+                ];
+              },
+              this));
       // console.log(windowTranslatedRect);
       // console.log(this.compass._objectRects);
 
-      // this.paper.rect.apply(this.paper, [
-      //   windowTranslatedRect[0] * this.zoom + this._offset[0],
-      //   windowTranslatedRect[1] * this.zoom + this._offset[1],
-      //   windowTranslatedRect[2] * this.zoom,
-      //   windowTranslatedRect[3] * this.zoom
-      // ]).attr({'stroke-width': 2, 'stroke': 'blue'});
+      this.paper.rect.apply(this.paper, [
+        windowTranslatedRect[0] + this._offset[0],
+        windowTranslatedRect[1] + this._offset[1],
+        windowTranslatedRect[2],
+        windowTranslatedRect[3] ])
+        .attr({'stroke-width': 2, 'stroke': 'blue'});
 
       if ( ! this.compass._objectRects.some(function(boundaryRect) {
         return rectanglesOverlap(boundaryRect, windowTranslatedRect);
@@ -310,7 +318,7 @@ var pl = {};
         this.mask = windowTranslatedRect;
       }
       this._walker(composition);
-      if (this._showBoundingBox) {
+      if (true || this._showBoundingBox) {
         this._drawBoundingBox();
       }
       return true;
@@ -337,8 +345,6 @@ var pl = {};
       },
 
       trackPoint: function(point) {
-        var x = point[0],
-            y = point[1];
         if (point.length !== 2) {
           throw new Error(
             'Wrong number of coordinates: ' +
@@ -350,6 +356,9 @@ var pl = {};
           'Some point members are not numbers: ' +
             JSON.stringify(point));
         }
+
+        var x = point[0],
+            y = point[1];
 
         if ( ! this._outerBoundaries) {
           this._outerBoundaries = [x, y, x, y];
@@ -377,7 +386,11 @@ var pl = {};
           'Some rect are not numbers: ' +
             JSON.stringify(rect));
         }
-        this._objectRects.push(rect);
+        this._objectRects.push(rect.map(
+          function(num) {
+            return num * this.zoom;
+          },
+          this));
         this.trackPoint(
           [rect[0],
            rect[1]]);
@@ -388,17 +401,17 @@ var pl = {};
 
       circle: function(radius) {
         var rect = [
-          this.point[0] - radius,
-          this.point[1] - radius,
-          radius * 2,
-          radius * 2
+          this.point[0] - radius * this.zoom,
+          this.point[1] - radius * this.zoom,
+          radius * this.zoom * 2,
+          radius * this.zoom * 2
         ];
         this.trackRect(rect);
       },
 
       rect: function(width, height, style) {
         var verticalLength = Math.abs(width),
-            verticalDirection = (height > 0) ? 'down' : 'up',
+            verticalDirection = (height > 0) ? 'back' : 'forward',
             horizontalLength = Math.abs(height),
             horizontalDirection = (width > 0) ? 'right' : 'left',
             oldPoint = this.point.slice(0);
@@ -448,14 +461,19 @@ var pl = {};
         if ( ! this._outerBoundaries) {
           throw new Error('Boundaries not calculated');
         }
-
         var ob = this._outerBoundaries,
             points = [
               this._outerBoundaries.slice(0, 2),
               this._outerBoundaries.slice(2, 4)
             ];
         if (adjusted) {
-          points = points.map(this.adjustPoint, this);
+          points = points.map(function(point) {
+            return [
+              point[0] + this._offset[0],
+              point[1] + this._offset[1]
+            ];
+          },
+                              this);
         }
         return points[0].concat(
           [points[1][0] - points[0][0],
@@ -495,9 +513,9 @@ var pl = {};
       },
 
       line: function(length, direction, style) {
-        var adjOldPoint = this.adjustPoint(this.point);
+        var adjOldPoint = this.translatePoint(this.point);
         this.move(length, direction);
-        var adjPoint = this.adjustPoint(this.point);
+        var adjPoint = this.translatePoint(this.point);
         var pathString = (
           'M' + adjOldPoint[0] +
             ' ' + adjOldPoint[1] +
@@ -510,9 +528,9 @@ var pl = {};
 
       rect: function(width, height, style) {
         var oldPoint = this.point.slice(0),
-            adjOldPoint = this.adjustPoint(oldPoint),
+            adjOldPoint = this.translatePoint(oldPoint),
             verticalLength = Math.abs(width),
-            verticalDirection = (height > 0) ? 'down' : 'up',
+            verticalDirection = (height > 0) ? 'back' : 'forward',
             horizontalLength = Math.abs(height),
             horizontalDirection = (width > 0) ? 'right' : 'left';
 
@@ -526,7 +544,7 @@ var pl = {};
           verticalDirection);
         var newPoint = this.point;
 
-        var adjPoint = this.adjustPoint(this.point);
+        var adjPoint = this.translatePoint(this.point);
         if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint)
                              ))
         {
@@ -539,14 +557,14 @@ var pl = {};
 
       circle: function(radius, style) {
         var rect = [
-          this.point[0] - radius,
-          this.point[1] - radius,
-          radius * 2,
-          radius * 2
+          this.point[0] - radius * this.zoom,
+          this.point[1] - radius * this.zoom,
+          radius * 2 * this.zoom,
+          radius * 2 * this.zoom
         ];
         if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this.adjustPoint(this.point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
+          var adjPoint = this.translatePoint(this.point);
+          this.paper.circle(adjPoint[0], adjPoint[1], radius)
             .attr(style);
         }
       },
@@ -666,7 +684,7 @@ var pl = {};
           return [
             'circle',
             random(2, 5),
-            { 'stroke-width': random(2, 5),
+            { 'stroke-width': random(1, 3),
               'fill-opacity': random(),
               'fill': random('color')
             } ]; }
@@ -730,7 +748,7 @@ var pl = {};
               {'stroke-width': random(1, 5)}];
           }
 
-          var up = makeMove('up'),
+          var up = makeMove('forward'),
               left = makeMove('left'),
               right = left.slice(0);
           right[2] = 'right';
@@ -767,8 +785,10 @@ var pl = {};
   // -----------------------------------------------------------------------------
 
   pl.Generator = function() {
-    this.depth = 5;
-    this.sequencesLength = 15;
+    // this.depth = 5;
+    this.depth = 3;
+    // this.sequencesLength = 15;
+    this.sequencesLength = 5;
   };
 
   pl.Generator.prototype = {
@@ -786,27 +806,30 @@ var pl = {};
         thing() :
         thing; },
 
+    _makeZoomer: function(sequence) {
+      var limit = random(1, 3) * 2;
+      return function() {
+        var originalZoom = this.zoom;
+        // var limit = 4;
+        for (var i = - limit / 2; i < limit / 2; i++) {
+          this.zoom = originalZoom +
+            originalZoom * i * 0.3;
+          this._walker(sequence);
+        }
+        this.zoom = originalZoom;
+      };
+    },
+
     make: function() {
       var sequences = [];
       // for (var i = 0, iL = this.depth; i < iL; i++) {
-      function makeZoomer(sequence) {
-        return function() {
-          var originalZoom = this.zoom;
-          var limit = random(1, 3) * 2;
-          for (var i = - limit / 2; i < limit / 2; i++) {
-            this.zoom = originalZoom +
-              originalZoom * i * 0.3;
-            this._walker(sequence);
-          }
-          this.zoom = originalZoom;
-        };
-      }
 
       for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
 
         if (i <= 1) {
-          pl.stampFactory.recipes.largeCircle.probability = 17;
+          // pl.stampFactory.recipes.largeCircle.probability = 17;
+          pl.stampFactory.recipes.largeCircle.probability = 0;
         } else {
           pl.stampFactory.recipes.largeCircle.probability = 0;
         }
@@ -819,7 +842,7 @@ var pl = {};
           if (random(3) === 0) {
             currentSequence.splice(
               random(sequences.length),
-              0, makeZoomer(sequences[0]));
+              0, this._makeZoomer(sequences[0]));
           } else {
             currentSequence.splice(
               random(sequences.length),

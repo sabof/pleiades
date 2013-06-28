@@ -13,6 +13,23 @@ function test_directionTranslate() {
   );
 }
 
+function test_zoomer() {
+  init();
+  composition = [
+    [['rotate', true], ['move', 10, 'right']],
+    [['rect', 3, 3, {'fill' : '#aa0044'}]
+     // ['line', 1, 'right']
+    ]
+  ];
+  composition[0].push(generator._makeZoomer(composition[1]));
+  // composition[0].push([2, composition[1]]);
+  composition = [[4, composition[0]]];
+  // composition = composition[0];
+  // brush = new pl.RaphaelBrush();
+  brush.init();
+  brush.drawComposition(composition);
+}
+
 function test_simpleRepeater() {
   generator = new pl.Generator();
   composition = [
