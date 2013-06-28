@@ -70,7 +70,7 @@ plt.isStampValid = function(pattern) {
     return this.isSequenceValid.call(this, pattern[1]);
     // return true;
   } else if (typeof pattern[0] === 'string') {
-    if (['move', 'line', 'circle', 'rect', 'rotate'].indexOf(pattern[0]) === -1) {
+    if (['move', 'line', 'circle', 'rect', 'rotate', 'reflect'].indexOf(pattern[0]) === -1) {
       throw new Error('Invalid keyword: ' + pattern[0]);
     }
   } else {

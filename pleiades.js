@@ -200,7 +200,7 @@ pl.Brush.prototype = {
   },
 
   line: function(length, direction) {},
-  // Could add a hor, vert format
+
   move: function(length, direction) {
     if ( this.directions.indexOf(direction) === -1)
     {
@@ -213,6 +213,19 @@ pl.Brush.prototype = {
 
   rotate: function(reverse) {
     this.directions = pl.util.rotateArray(this.directions, reverse);
+  },
+
+  reflect: function(across) {
+    var storage;
+    if (across) {
+      storage = this.directions[3];
+      this.directions[3] = this.directions[1];
+      this.directions[1] = storage;
+    } else {
+      storage = this.directions[2];
+      this.directions[2] = this.directions[0];
+      this.directions[0] = storage;
+    }
   },
 
   drawComposition: function(composition) {
@@ -520,7 +533,7 @@ pl.RaphaelBrush.prototype = pl.util.extend(
 // -----------------------------------------------------------------------------
 
 pl.Generator = function() {
-  this.depth = 3;
+  this.depth = 4;
   this.sequencesLength = 17;
 };
 
@@ -600,6 +613,15 @@ pl.stampFactory = {
       func: function() {
         var random = this.random;
         return ['rotate', !! random(2)];
+      }
+    },
+
+    reflect: {
+      probability: 0,
+      maxLength: 0,
+      func: function() {
+        var random = this.random;
+        return ['reflect', !! random(2)];
       }
     },
 
