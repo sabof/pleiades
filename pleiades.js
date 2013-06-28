@@ -159,7 +159,7 @@ var pl = {};
       ];
       var processed = parsed.map(
         function(channel) {
-          var raw = channel + (pl.util.random(intensity * 2) - intensity),
+          var raw = channel + (random(intensity * 2) - intensity),
               normalized = Math.min(255, Math.max(0, raw)),
               stringified = pl.util.ensureLength(normalized.toString(16), 2);
           return stringified;
@@ -278,8 +278,9 @@ var pl = {};
       //   imageCenter = windowCenter;
       // }
       this._offset = [
-        windowCenter[0] - imageCenter[0],
-        windowCenter[1] - imageCenter[1]];
+        Math.round(windowCenter[0] - imageCenter[0]),
+        Math.round(windowCenter[1] - imageCenter[1])
+      ];
       var windowTranslatedRect = (
         pointsToRect.apply(
           null,
@@ -580,8 +581,17 @@ var pl = {};
 
     make: function() {
       var sequences = [];
-      for (var i = 0, iL = this.depth; i < iL; i++) {
+      // for (var i = 0, iL = this.depth; i < iL; i++) {
+      for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
+
+        if (i <= 1) {
+          pl.stampFactory.recipes.largeCircle.probability = 17;
+        } else {
+          pl.stampFactory.recipes.largeCircle.probability = 0;
+        }
+        pl.stampFactory.makeMake();
+
         for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
           currentSequence.push(pl.stampFactory.make());
         }
@@ -675,16 +685,34 @@ var pl = {};
         }
       },
 
-      circle: {
-        probability: 5,
+      largeCircle: {
+        probability: 2,
+        maxLength: 1,
+        func: function() {
+          var width = random(1, 3);
+          return [
+            'circle',
+            random(30, 1000),
+            { 'stroke-width': width,
+              'stroke-dasharray' : (width === 1) ? 'none' : random(['- ', 'none']),
+              'stroke': 'white'
+              // 'stroke-opacity': 1
+              // 'fill-opacity': random(),
+              // 'fill': random('color')
+            } ]; }
+      },
+
+      smallCircle: {
+        probability: 3,
         maxLength: 1,
         func: function() {
           return [
             'circle',
             random(2, 5),
-            { 'stroke-width': 2,
+            { 'stroke-width': random(2, 5),
               'fill-opacity': random(),
-              'fill': random('color') } ]; }
+              'fill': random('color')
+            } ]; }
       },
 
       ambientRect: {
@@ -713,8 +741,8 @@ var pl = {};
           return ['rect', dimensions[0], dimensions[1],
                   { 'stroke-width': 1,
                     'fill': '45-' +
-                    pl.color.vary(oriColor, 50) + ':5-' +
-                    pl.color.vary(oriColor, 50) + ':95' }];
+                    pl.color.vary(oriColor, 100) + ':5-' +
+                    pl.color.vary(oriColor, 100) + ':95' }];
         }
       },
 
