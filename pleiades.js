@@ -1,9 +1,9 @@
-/*global Raphael, SeedRandom*/
+/*global Raphael, SeedRandom, brush*/
 
 // Project hosted at http://github.com/sabof/pleiades
 // Version 0.1
 
-var pl = {};
+var pl = {debug: false};
 
 (function () {
   var random = function(min, max) {
@@ -84,7 +84,16 @@ var pl = {};
     );
   };
 
+  // (or Rect and point)
   var rectanglesOverlap = function(rectA, rectB) {
+    if (rectA.length !== 4) {
+      rectA = rectA.slice(0);
+      rectA[2] = rectA[3] = 0;
+    }
+    if (rectB.length !== 4) {
+      rectB = rectB.slice(0);
+      rectB[2] = rectB[3] = 0;
+    }
     return rangesOverlap(
       [rectA[0], rectA[0] + rectA[2]],
       [rectB[0], rectB[0] + rectB[2]]
@@ -186,8 +195,8 @@ var pl = {};
     this.point = [0, 0];
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
-    this.zoom = 3;
-    this._showBoundingBox = false;
+    // this.zoom = 3;
+    this.zoom = 6;
   };
 
   pl.Brush.prototype = {
@@ -312,24 +321,51 @@ var pl = {};
               this));
       // console.log(windowTranslatedRect);
       // console.log(this.compass._objectRects);
+      if (pl.debug) {
+        this.paper.rect.apply(this.paper, [
+          windowTranslatedRect[0] + this._offset[0],
+          windowTranslatedRect[1] + this._offset[1],
+          windowTranslatedRect[2],
+          windowTranslatedRect[3] ])
+          .attr({'stroke-width': 4, 'stroke': 'blue'});
+      }
+      var visible = this.compass._objectRects.filter(function(rect) {
+        return rectanglesOverlap(rect, windowTranslatedRect);
+      });
+      // console.log(_objectRects);
 
-      // this.paper.rect.apply(this.paper, [
-      //   windowTranslatedRect[0] + this._offset[0],
-      //   windowTranslatedRect[1] + this._offset[1],
-      //   windowTranslatedRect[2],
-      //   windowTranslatedRect[3] ])
-      //   .attr({'stroke-width': 2, 'stroke': 'blue'});
+      // console.log(JSON.stringify(this.compass._objectRects));
+      if (pl.debug) {
+        visible.forEach(function(rect) {
+          // console.log(rect);
+          // console.log(self._offset);
+          var isPoint = (rect.length === 2) ? 1 : 0;
+          // console.log(rect);
+          brush.paper.rect(
+            rect[0] + self._offset[0] - isPoint,
+            rect[1] + self._offset[1] - isPoint,
+            rect[2] || 2,
+            rect[3] || 2 )
+            .attr(
+              {'stroke': isPoint ? 'red' : 'lime',
+               'stroke-width': 3
+               // 'stroke-dasharray': '. '
+              });
+        });
+      }
+      // console.log(visible.length);
+      // brush.paper.circle(x +  -608, y + -229, 2).attr({'fill': 'red'});
 
-      if ( ! this.compass._objectRects.some(function(boundaryRect) {
-        return rectanglesOverlap(boundaryRect, windowTranslatedRect);
-      })) {
-        console.log('invisible');
+      if (! visible.length) {
+        if (pl.debug) {
+          console.log('invisible');
+        }
         return false;
       } else {
         this.mask = windowTranslatedRect;
       }
       this._walker(composition);
-      if (this._showBoundingBox) {
+      if (pl.debug) {
         this._drawBoundingBox();
       }
       return true;
@@ -355,59 +391,47 @@ var pl = {};
         this._objectRects = [];
       },
 
-      trackPoint: function(point) {
-        if (point.length !== 2) {
+      // [left, top, width, height] or [left, top]
+      trackIt: function(rect) {
+        var self = this;
+        function adjustOuterBoundaries(point) {
+          var x = point[0],
+              y = point[1];
+
+          if ( ! self._outerBoundaries) {
+            self._outerBoundaries = [x, y, x, y];
+          } else {
+            self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
+            self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
+
+            self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
+            self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
+          }
+        }
+
+        if (rect.length < 2) {
           throw new Error(
-            'Wrong number of coordinates: ' +
-              point.length);
-        }
-        if ( ! point.every(function(num) {
-          return typeof num === 'number' && ! isNaN(num); }))
-        { throw new Error(
-          'Some point members are not numbers: ' +
-            JSON.stringify(point));
-        }
-
-        var x = point[0],
-            y = point[1];
-
-        if ( ! this._outerBoundaries) {
-          this._outerBoundaries = [x, y, x, y];
-        } else {
-          this._outerBoundaries[0] = Math.min(this._outerBoundaries[0], x);
-          this._outerBoundaries[1] = Math.min(this._outerBoundaries[1], y);
-
-          this._outerBoundaries[2] = Math.max(this._outerBoundaries[2], x);
-          this._outerBoundaries[3] = Math.max(this._outerBoundaries[3], y);
-        }
-        // brush.paper.circle(x * 3 +  557.5, y * 3 + 463.5, 2).attr({'fill': 'red'});
-        return [x, y];
-      },
-
-      // [left, top, width, height]
-      trackRect: function(rect) {
-        if (rect.length !== 4) {
-          throw new Error(
-            'Wrong number of rect: ' +
+            'Wrong number of members: ' +
               rect.length);
         }
         if ( ! rect.every(function(num) {
           return typeof num === 'number' && ! isNaN(num); }))
         { throw new Error(
-          'Some rect are not numbers: ' +
+          'Some members are not numbers: ' +
             JSON.stringify(rect));
         }
-        this._objectRects.push(rect.map(
-          function(num) {
-            return num * this.zoom;
-          },
-          this));
-        this.trackPoint(
+
+        this._objectRects.push(rect);
+
+        adjustOuterBoundaries(
           [rect[0],
            rect[1]]);
-        this.trackPoint(
-          [rect[0] + rect[2],
-           rect[1] + rect[3]]);
+        if (rect.length === 4) {
+          adjustOuterBoundaries(
+            [rect[0] + rect[2],
+             rect[1] + rect[3]]);
+        }
+        // console.log(ticket + ': ' + rect.length);
       },
 
       circle: function(radius) {
@@ -417,7 +441,7 @@ var pl = {};
           radius * this.zoom * 2,
           radius * this.zoom * 2
         ];
-        this.trackRect(rect);
+        this.trackIt(rect);
       },
 
       rect: function(width, height, style) {
@@ -434,14 +458,15 @@ var pl = {};
           this.point,
           verticalLength,
           verticalDirection);
-        this.trackRect(pointsToRect(oldPoint, this.point));
+        this.trackIt(pointsToRect(oldPoint, this.point));
 
       },
 
       line: function(length, direction) {
-        var oldPoint = this.point;
+        // var oldPoint = this.point;
+        this.trackIt(this.point);
         this.move(length, direction);
-        this.trackRect(pointsToRect(oldPoint, this.point));
+        this.trackIt(this.point);
       },
 
       _walker: function(pattern) {
@@ -455,11 +480,7 @@ var pl = {};
               for (var i = 0; i < stamp[0]; i++) {
                 self._walker(stamp[1]);
               }
-            } else {
-              if ( ! self[stamp[0]]) {
-                console.log(stamp);
-                console.log(self[stamp]);
-              }
+            } else if (! stamp.dontMeasure) {
               self[stamp[0]].apply(self, stamp.slice(1));
             }}); },
 
@@ -556,8 +577,8 @@ var pl = {};
         var newPoint = this.point;
 
         var adjPoint = this.translatePoint(this.point);
-        if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint)
-                             ))
+        if (rectanglesOverlap(
+          this.mask, pointsToRect(oldPoint, newPoint)))
         {
           this.paper.rect.apply(
             this.paper,
@@ -575,7 +596,7 @@ var pl = {};
         ];
         if (rectanglesOverlap(rect, this.mask)) {
           var adjPoint = this.translatePoint(this.point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius)
+          this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
             .attr(style);
         }
       },
@@ -678,29 +699,31 @@ var pl = {};
           var iterator = makeLooper(['.', 'none', '--', 'none']);
           return function() {
             var dasharray = iterator();
-            // var width = random(1, 3);
-            return [
+            var circle = [
               'circle',
-              random(30, 1000),
+              random(10, 300),
               { 'stroke-width': (dasharray === 'none') ? 1 : 2,
                 'stroke-dasharray' : dasharray,
                 'stroke': 'white'
                 // 'stroke-opacity': 1
                 // 'fill-opacity': random(),
                 // 'fill': random('color')
-              } ]; };
+              } ];
+            circle.dontMeasure = true;
+            return circle; };
 
         }())
 
       },
 
       smallCircle: {
-        probability: 3,
+        // probability: 3,
+        probability: 30,
         maxLength: 1,
         func: function() {
           return [
             'circle',
-            random(2, 5),
+            random(1, 2),
             { 'stroke-width': random(1, 3),
               'fill-opacity': random(),
               'fill': random('color')
@@ -805,7 +828,7 @@ var pl = {};
     this.depth = 5;
     // this.depth = 3;
     this.sequencesLength = 15;
-    // this.sequencesLength = 5;
+    // this.sequencesLength = 10;
   };
 
   pl.Generator.prototype = {
@@ -823,12 +846,12 @@ var pl = {};
         thing() :
         thing; },
 
-    _makeZoomer: function(sequence) {
-      var limit = random(1, 3) * 2;
+    _makeZoomer: function(sequence, repeat) {
+      repeat = repeat || random(1, 3) * 2;
       return function() {
         var originalZoom = this.zoom;
-        // var limit = 4;
-        for (var i = - limit / 2; i < limit / 2; i++) {
+        // var repeat = 4;
+        for (var i = - repeat / 2; i < repeat / 2; i++) {
           this.zoom = originalZoom +
             originalZoom * i * 0.3;
           this._walker(sequence);
