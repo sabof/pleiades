@@ -264,10 +264,9 @@ describe("Generator", function() {
   generator.sequencesLength = 4;
   generator.depth = 5;
   composition = generator.make();
-  it("should create valid compositions", function() {
-    expect(plt.isSequenceValid(composition))
-      .toBeTruthy();
-  });
+  it("should create valid compositions")
+    .expect(plt.isSequenceValid(composition))
+    .toBeTruthy();
 });
 
 // -----------------------------------------------------------------------------
@@ -346,7 +345,7 @@ describe("RaphaelBrush", function() {
       } catch (error) {
         return false;
       }
-      return true; })
-      .toBeTruthy();
+      return true;
+    }).toBeTruthy();
   });
 });

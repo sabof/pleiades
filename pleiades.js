@@ -187,7 +187,7 @@ var pl = {};
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
     this.zoom = 3;
-    this._showBoundingBox = false;
+    this._showBoundingBox = true;
   };
 
   pl.Brush.prototype = {
@@ -320,9 +320,23 @@ var pl = {};
       //   windowTranslatedRect[3] ])
       //   .attr({'stroke-width': 2, 'stroke': 'blue'});
 
-      if ( ! this.compass._objectRects.some(function(boundaryRect) {
-        return rectanglesOverlap(boundaryRect, windowTranslatedRect);
-      })) {
+      var visible = this.compass._objectRects.filter(function(rect) {
+        return rectanglesOverlap(rect, windowTranslatedRect);
+      });
+      // console.log(JSON.stringify(visible));
+      visible.forEach(function(rect) {
+        console.log(rect);
+        console.log(self._offset);
+        brush.paper.rect(
+          rect[0] + self._offset[0],
+          rect[1] + self._offset[1],
+          rect[2],
+          rect[3]).attr({'stroke': 'red'});
+      });
+      console.log(visible.length);
+      // brush.paper.circle(x +  -608, y + -229, 2).attr({'fill': 'red'});
+
+      if (! visible.length) {
         console.log('invisible');
         return false;
       } else {
@@ -380,7 +394,6 @@ var pl = {};
           this._outerBoundaries[2] = Math.max(this._outerBoundaries[2], x);
           this._outerBoundaries[3] = Math.max(this._outerBoundaries[3], y);
         }
-        // brush.paper.circle(x * 3 +  557.5, y * 3 + 463.5, 2).attr({'fill': 'red'});
         return [x, y];
       },
 
@@ -397,11 +410,7 @@ var pl = {};
           'Some rect are not numbers: ' +
             JSON.stringify(rect));
         }
-        this._objectRects.push(rect.map(
-          function(num) {
-            return num * this.zoom;
-          },
-          this));
+        this._objectRects.push(rect);
         this.trackPoint(
           [rect[0],
            rect[1]]);
@@ -455,11 +464,7 @@ var pl = {};
               for (var i = 0; i < stamp[0]; i++) {
                 self._walker(stamp[1]);
               }
-            } else {
-              if ( ! self[stamp[0]]) {
-                console.log(stamp);
-                console.log(self[stamp]);
-              }
+            } else if (! stamp.dontMeasure) {
               self[stamp[0]].apply(self, stamp.slice(1));
             }}); },
 
@@ -678,8 +683,7 @@ var pl = {};
           var iterator = makeLooper(['.', 'none', '--', 'none']);
           return function() {
             var dasharray = iterator();
-            // var width = random(1, 3);
-            return [
+            var circle = [
               'circle',
               random(30, 1000),
               { 'stroke-width': (dasharray === 'none') ? 1 : 2,
@@ -688,7 +692,9 @@ var pl = {};
                 // 'stroke-opacity': 1
                 // 'fill-opacity': random(),
                 // 'fill': random('color')
-              } ]; };
+              } ];
+            circle.dontMeasure = true;
+            return circle; };
 
         }())
 
