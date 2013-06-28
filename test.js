@@ -1,6 +1,10 @@
-/*global generator:true, composition:true, brush:true, pl, SeedRandom, describe, it, expect, jasmine*/
+/*global generator:true, composition:true, brush:true, pl, init, SeedRandom, describe, it, expect, jasmine*/
 
 var plt = {};
+
+SeedRandom.seed('test');
+
+// -----------------------------------------------------------------------------
 
 function test_directionTranslate() {
   brush = new pl.RaphaelBrush();
@@ -22,6 +26,24 @@ function test_zoomer() {
     ]
   ];
   composition[0].push(generator._makeZoomer(composition[1]));
+  // composition[0].push([2, composition[1]]);
+  composition = [[4, composition[0]]];
+  // composition = composition[0];
+  // brush = new pl.RaphaelBrush();
+  brush.init();
+  brush.drawComposition(composition);
+}
+
+function test_zoomAlignement() {
+  init();
+  composition = [
+    [['rotate', true], ['move', 10, 'right']],
+    [['rect', 4, 4, {'fill' : '#aa0044'}],
+     ['line', 2, 'left'],
+     ['line', 2, 'forward'],
+     ['circle', 2] ]
+  ];
+  composition[0].push(generator._makeZoomer(composition[1], 4));
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
@@ -146,10 +168,6 @@ function MockPaper() {
       self[method] = function () { return {attr: function() {}}; };
     });
 }
-
-// -----------------------------------------------------------------------------
-
-SeedRandom.seed('test');
 
 // -----------------------------------------------------------------------------
 
