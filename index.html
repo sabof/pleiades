@@ -41,7 +41,6 @@ var generator, composition, ticket, brush,
 
 function refresh() {
   var ticketInput = document.getElementById('ticket');
-  setTimeout(refresh, 2000);
   if (document.body.className !== 'hidden' && running) {
     while (true) {
       ticket = pl.util.makeTicket();
@@ -52,6 +51,7 @@ function refresh() {
       }
     }
   }
+  setTimeout(refresh, 2000);
 }
 
 function initUI() {

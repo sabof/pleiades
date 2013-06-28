@@ -289,6 +289,8 @@ pl.Brush.prototype = {
     })) {
       console.log('invisible');
       return false;
+    } else {
+      this.mask = windowTranslatedRect;
     }
     walker(composition);
     if (this._showBoundingBox) {
@@ -488,7 +490,8 @@ pl.RaphaelBrush.prototype = pl.util.extend(
     },
 
     rect: function(width, height, style) {
-      var adjOldPoint = this.adjustPoint(this.point),
+      var oldPoint = this.point.slice(0),
+          adjOldPoint = this.adjustPoint(oldPoint),
           verticalLength = Math.abs(width),
           verticalDirection = (height > 0) ? 'down' : 'up',
           horizontalLength = Math.abs(height),
@@ -502,20 +505,33 @@ pl.RaphaelBrush.prototype = pl.util.extend(
         this.point,
         verticalLength,
         verticalDirection);
-      var adjPoint = this.adjustPoint(this.point);
-      var x  = Math.min(adjOldPoint[0], adjPoint[0]),
-          y  = Math.min(adjOldPoint[1], adjPoint[1]),
-          x2 = Math.max(adjOldPoint[0], adjPoint[0]),
-          y2 = Math.max(adjOldPoint[1], adjPoint[1]);
+      var newPoint = this.point;
 
-      this.paper.rect(x, y, x2 - x, y2 - y)
-        .attr(style);
+      var adjPoint = this.adjustPoint(this.point);
+      if (pl.util.rectanglesOverlap(
+        this.mask,
+        pl.util.pointsToRect(oldPoint, newPoint)
+      ))
+      {
+        this.paper.rect.apply(
+          this.paper,
+          pl.util.pointsToRect(adjOldPoint, adjPoint)
+        ).attr(style);
+      }
     },
 
     circle: function(radius, style) {
-      var adjPoint = this.adjustPoint(this.point);
-      this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
-        .attr(style);
+      var rect = [
+        this.point[0] - radius,
+        this.point[1] - radius,
+        radius * 2,
+        radius * 2
+      ];
+      if (pl.util.rectanglesOverlap(rect, this.mask)) {
+        var adjPoint = this.adjustPoint(this.point);
+        this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
+          .attr(style);
+      }
     },
 
     _drawBoundingBox: function() {
@@ -533,8 +549,8 @@ pl.RaphaelBrush.prototype = pl.util.extend(
 // -----------------------------------------------------------------------------
 
 pl.Generator = function() {
-  this.depth = 4;
-  this.sequencesLength = 17;
+  this.depth = 5;
+  this.sequencesLength = 15;
 };
 
 pl.Generator.prototype = {
@@ -686,14 +702,14 @@ pl.stampFactory = {
       maxLength: 1,
       func: function() {
         var random = this.random,
-            dimensions = [random(1, 3), random(10, 30)],
+            dimensions = [random(1, 3), random(3, 20)],
             oriColor = random('color');
         if (random(2)) {
           dimensions = pl.util.rotateArray(dimensions);
         }
         return ['rect', dimensions[0], dimensions[1],
                 { 'stroke-width': 1,
-                  'fill': '95-' +
+                  'fill': '45-' +
                   pl.color.vary(oriColor, 50) + ':5-' +
                   pl.color.vary(oriColor, 50) + ':95' }];
       }
@@ -738,7 +754,7 @@ pl.stampFactory = {
     },
 
     target: {
-      probability: 1,
+      probability: 0,
       func: function() {
         var scale = 2;
         return [
@@ -749,7 +765,7 @@ pl.stampFactory = {
     },
 
     racket: {
-      probability: 3,
+      probability: 0,
       func: function() {
         var random = this.random;
         return [
