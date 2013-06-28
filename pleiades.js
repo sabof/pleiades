@@ -302,12 +302,12 @@ var pl = {};
       // console.log(windowTranslatedRect);
       // console.log(this.compass._objectRects);
 
-      this.paper.rect.apply(this.paper, [
-        windowTranslatedRect[0] + this._offset[0],
-        windowTranslatedRect[1] + this._offset[1],
-        windowTranslatedRect[2],
-        windowTranslatedRect[3] ])
-        .attr({'stroke-width': 2, 'stroke': 'blue'});
+      // this.paper.rect.apply(this.paper, [
+      //   windowTranslatedRect[0] + this._offset[0],
+      //   windowTranslatedRect[1] + this._offset[1],
+      //   windowTranslatedRect[2],
+      //   windowTranslatedRect[3] ])
+      //   .attr({'stroke-width': 2, 'stroke': 'blue'});
 
       if ( ! this.compass._objectRects.some(function(boundaryRect) {
         return rectanglesOverlap(boundaryRect, windowTranslatedRect);
@@ -318,7 +318,7 @@ var pl = {};
         this.mask = windowTranslatedRect;
       }
       this._walker(composition);
-      if (true || this._showBoundingBox) {
+      if (this._showBoundingBox) {
         this._drawBoundingBox();
       }
       return true;
@@ -785,10 +785,10 @@ var pl = {};
   // -----------------------------------------------------------------------------
 
   pl.Generator = function() {
-    // this.depth = 5;
-    this.depth = 3;
-    // this.sequencesLength = 15;
-    this.sequencesLength = 5;
+    this.depth = 5;
+    // this.depth = 3;
+    this.sequencesLength = 15;
+    // this.sequencesLength = 5;
   };
 
   pl.Generator.prototype = {
@@ -828,8 +828,7 @@ var pl = {};
         var currentSequence = [];
 
         if (i <= 1) {
-          // pl.stampFactory.recipes.largeCircle.probability = 17;
-          pl.stampFactory.recipes.largeCircle.probability = 0;
+          pl.stampFactory.recipes.largeCircle.probability = 7;
         } else {
           pl.stampFactory.recipes.largeCircle.probability = 0;
         }
@@ -839,7 +838,7 @@ var pl = {};
           currentSequence.push(pl.stampFactory.make());
         }
         if (sequences.length) {
-          if (random(3) === 0) {
+          if (random(2)) {
             currentSequence.splice(
               random(sequences.length),
               0, this._makeZoomer(sequences[0]));
