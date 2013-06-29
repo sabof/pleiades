@@ -37,18 +37,17 @@ html {
 <script>
 
 var generator, composition, ticket, brush, stampFactory;
-var running = true;
 // pl.debug = true;
 
 function initUI() {
   document.getElementById('ticket')
   .addEventListener('focus', function() {
-    running = false;
+    previewer.paused = true;
   });
 
 document.getElementById('ticket')
   .addEventListener('blur', function() {
-    running = true;
+    previewer.paused = false;
   });
 
 document.getElementById('ticket')
@@ -59,26 +58,25 @@ document.getElementById('ticket')
       var value = this.value.trim();
       if (value.length === 4 && value !== ticket) {
         ticket = value;
-        SeedRandom.seed(ticket);
-        composition = generator.make();
-        brush.drawComposition(composition);
+        previewer.step(value);
       }}
   });
 }
 
+var previewer;
 function init() {
   initUI();
   var colorThemeFactory = new pl.ColorThemeFactory(),
       stampFactory = new pl.StampFactory(colorThemeFactory);
-  window.previewer = new pl.Previewer({
+  previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
     painter: new pl.RaphaelPainter(),
-    beforeStepHook: function() {
-      ticketInput = document.getElementById('ticket');
-      ticket = pl.util.makeTicket();
-    },
+    // beforeStepHook: function() {
+    // var ticketInput = document.getElementById('ticket');
+    // this.ticket = pl.util.makeTicket();
+    // },
     afterStepHook: function() {
-      ticketInput.value = ticket;
+      document.getElementById('ticket').value = previewer.ticket;
     },
     compositionFactory: new pl.CompositionFactory({
       depth: 4,

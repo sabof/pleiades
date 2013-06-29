@@ -1016,19 +1016,28 @@ var pl = {debug: false};
     composition: null,
     loopInterval: 5,
     ticket: null,
+    paused: false,
+    stopped: false,
     init: function() {
       this.painter.init();
     },
 
-    step: function() {
+    step: function(seed) {
       this.beforeStepHook();
+      if (seed) {
+        this.ticket = seed;
+      } else {
+        this.ticket = pl.util.makeTicket();
+      }
+      SeedRandom.seed(this.ticket);
       this.composition = this.compositionFactory.make();
       this.painter.drawComposition(this.composition);
+      // previewer.step('1168') 24EF
       this.afterStepHook();
     },
 
     loop: function() {
-      if (document.body.className !== 'hidden' && running) {
+      if (document.body.className !== 'hidden' && ! this.paused) {
         while (true) {
           try {
             this.step();
@@ -1039,12 +1048,17 @@ var pl = {debug: false};
           break;
         }
       }
-      setTimeout(this.loop.bind(this),
-                 this.loopInterval * 1000);
+      if ( ! this.stopped) {
+        setTimeout(this.loop.bind(this),
+                   this.loopInterval * 1000);
+      }
+    },
+    stop: function() {
+      this.stopped = true;
     },
 
-    start: function() {
-      switch (2) {
+    start: function(type) {
+      switch (type) {
       case 1:
         this.init();
         this.step();
@@ -1052,7 +1066,8 @@ var pl = {debug: false};
 
       case 2:
         this.init();
-        // this.loop();
+        this.stopped = false;
+        this.loop();
         break;
 
       case 0:
