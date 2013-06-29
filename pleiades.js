@@ -86,18 +86,19 @@ var pl = {debug: false};
   };
 
   var pointsToRect = function(/* rest */) {
-    var map = Array.prototype.map,
-        xs = map.call(arguments, function(arr) { return arr[0]; }),
-        ys = map.call(arguments, function(arr) { return arr[1]; }),
-        minX = xs.reduce(function(a, b) { return Math.min(a, b); }),
-        maxX = xs.reduce(function(a, b) { return Math.max(a, b); }),
-        minY = ys.reduce(function(a, b) { return Math.min(a, b); }),
-        maxY = ys.reduce(function(a, b) { return Math.max(a, b); });
-    return [
-      minX,
-      minY,
-      maxX - minX,
-      maxY - minY
+    var reduce = Array.prototype.reduce,
+        min = reduce.call(arguments, function(a, b) {
+          return [Math.min(a[0], b[0]),
+                  Math.min(a[1], b[1])];
+        }),
+        max = reduce.call(arguments, function(a, b) {
+          return [Math.max(a[0], b[0]),
+                  Math.max(a[1], b[1])];
+        });
+    return [ min[0],
+      min[1],
+      max[0] - min[0],
+      max[1] - min[1]
     ];
   };
 
@@ -212,8 +213,35 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.Brush = function(compass) {
-    this.compass = compass || new pl.Compass();
+  pl.ColorMaker = function() {};
+
+  pl.ColorMaker.prototype = {
+    constructor: pl.ColorMaker,
+
+    background: function() {},
+    highlight: function() {},
+    shadow: function() {}
+  };
+
+  // ---------------------------------------------------------------------------
+
+  pl.RaphaelBrush = function() {};
+
+  pl.RaphaelBrush = {
+    constructor: pl.RaphaelBrush,
+    polyline: function(points, attributes) {
+
+    },
+    circle: function(point, attributes) {
+
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+
+  pl.Painter = function(painter) {
+    this.compass = new pl.Compass();
+    this.painter = painter;
     this.point = [0, 0];
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
@@ -221,8 +249,8 @@ var pl = {debug: false};
     this.angleRotation = 0;
   };
 
-  pl.Brush.prototype = {
-    constructor: pl.Brush,
+  pl.Painter.prototype = {
+    constructor: pl.Painter,
 
     reset: function() {},
 
@@ -306,11 +334,8 @@ var pl = {debug: false};
               self._walker(stamp[1]);
             }
           } else {
-            self[stamp[0]]
-              .apply(
-                self,
-                stamp.slice(1)
-              ); }});
+            self[stamp[0]].apply(self, stamp.slice(1));
+          }});
     },
 
     drawComposition: function(composition) {
@@ -406,7 +431,7 @@ var pl = {debug: false};
   };
 
   pl.Compass.prototype = extend(
-    new pl.Brush(),
+    new pl.Painter(),
     { constructor: pl.Compass,
       reset: function() {
         this.point = [0, 0];
@@ -528,11 +553,11 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.RaphaelBrush = function() {};
+  pl.RaphaelPainter = function() {};
 
-  pl.RaphaelBrush.prototype = extend(
-    new pl.Brush(),
-    { constructor: pl.RaphaelBrush,
+  pl.RaphaelPainter.prototype = extend(
+    new pl.Painter(),
+    { constructor: pl.RaphaelPainter,
 
       init: function() {
         this.paper = new Raphael(
@@ -858,13 +883,13 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.Generator = function() {
+  pl.CompositionFactory = function() {
     this.depth = 5;
     this.sequencesLength = 15;
   };
 
-  pl.Generator.prototype = {
-    constructor: pl.Generator,
+  pl.CompositionFactory.prototype = {
+    constructor: pl.CompositionFactory,
 
     maybeRange: function(thing) {
       if (thing instanceof Array) {

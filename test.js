@@ -7,7 +7,7 @@ SeedRandom.seed('test');
 // -----------------------------------------------------------------------------
 
 function test_directionTranslate() {
-  brush = new pl.RaphaelBrush();
+  brush = new pl.RaphaelPainter();
   console.log(
     [brush.directionTranslate([0,0], 5, 'up'),
      brush.directionTranslate([0,0], 5, 'right'),
@@ -29,7 +29,7 @@ function test_zoomer() {
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
-  // brush = new pl.RaphaelBrush();
+  // brush = new pl.RaphaelPainter();
   brush.init();
   brush.drawComposition(composition);
 }
@@ -67,13 +67,13 @@ function test_zoomAlignement() {
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
-  // brush = new pl.RaphaelBrush();
+  // brush = new pl.RaphaelPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_simpleRepeater() {
-  generator = new pl.Generator();
+  generator = new pl.CompositionFactory();
   composition = [
     [['line', 30, 'up']],
     [['rect', 30, 30, {'fill' : '#aa0044'}],
@@ -81,13 +81,13 @@ function test_simpleRepeater() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = new pl.RaphaelBrush();
+  brush = new pl.RaphaelPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_rotator() {
-  generator = new pl.Generator();
+  generator = new pl.CompositionFactory();
   composition = [
     [['line', 30, 'down'],
      ['line', 30, 'right']],
@@ -99,13 +99,13 @@ function test_rotator() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = new pl.RaphaelBrush();
+  brush = new pl.RaphaelPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_centerer() {
-  generator = new pl.Generator();
+  generator = new pl.CompositionFactory();
   composition = [
     [],
     [['rect', 30, 30, {'fill' : '#aa0044'}],
@@ -113,7 +113,7 @@ function test_centerer() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = new pl.RaphaelBrush();
+  brush = new pl.RaphaelPainter();
   brush.init();
   brush.drawComposition(composition);
 }
@@ -132,7 +132,7 @@ plt.isStampValid = function(pattern) {
     return this.isSequenceValid.call(this, pattern[1]);
     // return true;
   } else if (typeof pattern[0] === 'string') {
-    if (['move', 'line', 'circle', 'rect', 'rotate', 'reflect']
+    if (['move', 'line', 'circle', 'rect', 'rotate', 'reflect', 'rotateAngle']
         .indexOf(pattern[0]) === -1)
     {
       throw new Error('Invalid keyword: ' + pattern[0]);
@@ -150,16 +150,12 @@ plt.isSequenceValid = function(sequence) {
     sequence.every(this.isStampValid);
 }.bind(plt);
 
-function should() {
-
-}
-
 function test_simpleDrawing() {
   // var composition = [
   //   [['rect', 30, 30, {'fill' : '#aa0044'}],
   //    ['line', 10, 'right']]
   // ],
-  brush = new pl.RaphaelBrush();
+  brush = new pl.RaphaelPainter();
   brush.init();
   brush.move(5, 'down');
   brush.move(5, 'right');
@@ -297,8 +293,8 @@ describe('sequenceFactory', function() {
 
 // -----------------------------------------------------------------------------
 
-describe("Generator", function() {
-  generator = new pl.Generator();
+describe("CompositionFactory", function() {
+  generator = new pl.CompositionFactory();
   generator.sequencesLength = 4;
   generator.depth = 5;
   composition = generator.make();
@@ -372,8 +368,8 @@ describe("Compass", function() {
 
 // -----------------------------------------------------------------------------
 
-describe("RaphaelBrush", function() {
-  brush = new pl.RaphaelBrush();
+describe("RaphaelPainter", function() {
+  brush = new pl.RaphaelPainter();
   brush.paper = new MockPaper();
   // jasmine.log('log test');
   it("shouldn't throw", function() {
