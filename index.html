@@ -40,21 +40,6 @@ var generator, composition, ticket, brush, stampFactory;
 var running = true;
 // pl.debug = true;
 
-function refresh() {
-  var ticketInput = document.getElementById('ticket');
-  if (document.body.className !== 'hidden' && running) {
-    while (true) {
-      ticket = pl.util.makeTicket();
-      SeedRandom.seed(ticket);
-      if (step()) {
-        ticketInput.value = ticket;
-        break;
-      }
-    }
-  }
-  setTimeout(refresh, 6000);
-}
-
 function initUI() {
   document.getElementById('ticket')
   .addEventListener('focus', function() {
@@ -83,43 +68,34 @@ document.getElementById('ticket')
 
 function init() {
   initUI();
-  brush = new pl.RaphaelPainter();
-  brush.init();
-
-  stampFactory = new pl.StampFactory();
-  colorFactory = new pl.ColorFactory();
-  generator = new pl.CompositionFactory(stampFactory, colorFactory);
-
-  // brush._showBoundingBox = true;
+  var colorThemeFactory = new pl.ColorThemeFactory(),
+      stampFactory = new pl.StampFactory(colorThemeFactory);
+  window.previewer = new pl.Previewer({
+    colorThemeFactory: colorThemeFactory,
+    painter: new pl.RaphaelPainter(),
+    beforeStepHook: function() {
+      ticketInput = document.getElementById('ticket');
+      ticket = pl.util.makeTicket();
+    },
+    afterStepHook: function() {
+      ticketInput.value = ticket;
+    },
+    compositionFactory: new pl.CompositionFactory({
+      depth: 4,
+      sequenceLength: 15,
+      stampFactory: stampFactory,
+      colorThemeFactory: colorThemeFactory
+    })
+  });
+  previewer.start(2);
 }
 
-function step() {
-  // SeedRandom.seed('4D30'); // invisible
-  // SeedRandom.seed('1421'); // small
-  // SeedRandom.seed('189E');
-  // brush.angleRotation = 0.1;
-  composition = generator.make();
-  return brush.drawComposition(composition);
-}
+init();
 
-switch (2) {
-case 1:
-  SeedRandom.seed('test');
-  init();
-  step();
-  break;
+// SeedRandom.seed('4D30'); // invisible
+// SeedRandom.seed('1421'); // small
+// SeedRandom.seed('189E');
 
-case 2:
-  init();
-  refresh();
-  break;
-
-case 0:
-  break;
-
-default:
-  init();
-}
 
 // test_angleRotator()
 

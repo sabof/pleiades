@@ -1,4 +1,4 @@
-/*global Raphael, SeedRandom, brush*/
+/*global Raphael, SeedRandom, brush, running*/
 
 // Project hosted at http://github.com/sabof/pleiades
 // Version 0.1
@@ -148,6 +148,9 @@ var pl = {debug: false};
     };
   }
 
+  function constantly(value) {
+    return function() { return value; };
+  }
 
   pl.util = {
     // Assume it's just max/array with one argument.
@@ -157,6 +160,8 @@ var pl = {debug: false};
     rotateArray: rotateArray,
 
     extend: extend,
+
+    constantly: constantly,
 
     ensureLength: function(string, length) {
       if (string.length > length) {
@@ -213,14 +218,34 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorFactory = function() {};
+  pl.ColorTheme = function() {};
 
-  pl.ColorFactory.prototype = {
-    constructor: pl.ColorFactory,
+  pl.ColorTheme.prototype = {
+    constructor: pl.ColorTheme,
 
     background: function() {},
     highlight: function() {},
+    outline: function() {},
     shadow: function() {}
+  };
+
+  // ---------------------------------------------------------------------------
+
+  pl.ColorThemeFactory = function(themes) {
+    this.themes = themes;
+  };
+
+  pl.ColorThemeFactory.prototype = {
+    themes: {
+      papyrus: extend(
+        new pl.ColorTheme(),
+        { outline: constantly('#000000'),
+          background: constantly('#C7C289')
+        })
+    },
+    make: function() {
+      return random(this.themes);
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -662,7 +687,9 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.StampFactory = function() {};
+  pl.StampFactory = function(colorTheme) {
+    this.colorTheme = colorTheme;
+  };
 
   pl.StampFactory.prototype = {
     reset: function() {
@@ -885,11 +912,10 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.CompositionFactory = function(stampFactory, colorFactory) {
+  pl.CompositionFactory = function(properties) {
     this.depth = 5;
-    this.sequencesLength = 15;
-    this.stampFactory = stampFactory;
-    this.colorFactory = colorFactory;
+    this.sequenceLength = 15;
+    extend(this, properties);
   };
 
   pl.CompositionFactory.prototype = {
@@ -943,7 +969,7 @@ var pl = {debug: false};
         }
         this.stampFactory.reset();
 
-        for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
+        for (var j = 0, jL = this.sequenceLength; j < jL; j++) {
           currentSequence.unshift(this.stampFactory.make());
         }
         if (sequences.length) {
@@ -972,6 +998,69 @@ var pl = {debug: false};
       }
       this.stampFactory.recipes.largeCircle.func = oriLC;
       return [[4, sequences[0]]];
+    }
+  };
+
+  // -----------------------------------------------------------------------------
+
+  pl.Previewer = function(properties) {
+    extend(this, properties);
+  };
+
+  pl.Previewer.prototype = {
+    stampFactory: null,
+    beforeStepHook: constantly(false),
+    afterStepHook: constantly(false),
+    painter: null,
+    compositionFactory: null,
+    composition: null,
+    loopInterval: 5,
+    ticket: null,
+    init: function() {
+      this.painter.init();
+    },
+
+    step: function() {
+      this.beforeStepHook();
+      this.composition = this.compositionFactory.make();
+      this.painter.drawComposition(this.composition);
+      this.afterStepHook();
+    },
+
+    loop: function() {
+      if (document.body.className !== 'hidden' && running) {
+        while (true) {
+          try {
+            this.step();
+          } catch (error) {
+            console.log(error);
+            continue;
+          }
+          break;
+        }
+      }
+      setTimeout(this.loop.bind(this),
+                 this.loopInterval * 1000);
+    },
+
+    start: function() {
+      switch (2) {
+      case 1:
+        this.init();
+        this.step();
+        break;
+
+      case 2:
+        this.init();
+        // this.loop();
+        break;
+
+      case 0:
+        break;
+
+      default:
+        this.init();
+      }
     }
   };
 }());

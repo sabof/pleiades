@@ -295,7 +295,7 @@ describe('sequenceFactory', function() {
 
 describe("CompositionFactory", function() {
   generator = new pl.CompositionFactory();
-  generator.sequencesLength = 4;
+  generator.sequenceLength = 4;
   generator.depth = 5;
   composition = generator.make();
   it("should create valid compositions")
