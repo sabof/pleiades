@@ -188,7 +188,7 @@ var pl = {debug: false};
     rectToPoints: rectToPoints
   };
 
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   pl.color = {
     vary: function(color, intensity) {
@@ -210,15 +210,14 @@ var pl = {debug: false};
     }
   };
 
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   pl.Brush = function(compass) {
     this.compass = compass || new pl.Compass();
     this.point = [0, 0];
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
-    // this.zoom = 3;
-    this.zoom = 6;
+    this.zoom = 4;
     this.angleRotation = 0;
   };
 
@@ -331,14 +330,6 @@ var pl = {debug: false};
         (outerRect[0] + outerRect[2] / 2),
         (outerRect[1] + outerRect[3] / 2)
       ];
-      // try {
-
-      // } catch (error) {
-      //   if ( ! this.compass.outerBoundaries[0]) {
-      //     console.log('blank image');
-      //   }
-      //   imageCenter = windowCenter;
-      // }
       this._offset = [
         Math.round(windowCenter[0] - imageCenter[0]),
         Math.round(windowCenter[1] - imageCenter[1])
@@ -355,20 +346,12 @@ var pl = {debug: false};
                   ];
               },
               this));
-      // console.log(windowTranslatedRect);
-      // console.log(this.compass._objectRects);
       var visible = this.compass._objectRects.filter(function(rect) {
         return rectanglesOverlap(rect, windowTranslatedRect);
       });
-      // console.log(_objectRects);
-
-      // console.log(JSON.stringify(this.compass._objectRects));
       if (pl.debug) {
         visible.forEach(function(rect) {
-          // console.log(rect);
-          // console.log(self._offset);
           var isPoint = (rect.length === 2) ? 1 : 0;
-          // console.log(rect);
           brush.paper.rect(
             rect[0] + self._offset[0] - isPoint,
             rect[1] + self._offset[1] - isPoint,
@@ -377,12 +360,9 @@ var pl = {debug: false};
             .attr(
               {'stroke': isPoint ? 'red' : 'lime',
                'stroke-width': 3
-               // 'stroke-dasharray': '. '
               });
         });
       }
-      // console.log(visible.length);
-      // brush.paper.circle(x +  -608, y + -229, 2).attr({'fill': 'red'});
 
       if (! visible.length) {
         if (pl.debug) {
@@ -418,7 +398,7 @@ var pl = {debug: false};
     destroy: function() {}
   };
 
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   pl.Compass = function() {
     this._objectRects = [];
@@ -473,7 +453,6 @@ var pl = {debug: false};
             [rect[0] + rect[2],
              rect[1] + rect[3]]);
         }
-        // console.log(ticket + ': ' + rect.length);
       },
 
       circle: function(radius) {
@@ -492,21 +471,17 @@ var pl = {debug: false};
             pointLT = this.directionTranslate(pointLB, height, 'forward'),
             pointRT = this.directionTranslate(pointRB, height, 'forward'),
             allPoints = [ pointLB, pointRB, pointRT, pointLT ];
-        // console.log(JSON.stringify(allPoints));
-        // console.log(JSON.stringify(pointsToRect.apply(null, allPoints)));
         this.trackIt(pointsToRect.apply(null, allPoints));
         this.point = pointRT;
       },
 
       line: function(length, direction) {
-        // var oldPoint = this.point;
         this.trackIt(this.point);
         this.move(length, direction);
         this.trackIt(this.point);
       },
 
       _walker: function(pattern) {
-        // console.log(pattern);
         var self = this;
         pattern.forEach(
           function(stamp) {
@@ -551,7 +526,7 @@ var pl = {debug: false};
       }
     });
 
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   pl.RaphaelBrush = function() {};
 
@@ -660,7 +635,7 @@ var pl = {debug: false};
     }
   );
 
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   pl.stampFactory = {
     reset: function() {
@@ -769,9 +744,6 @@ var pl = {debug: false};
             { 'stroke-width': (dasharray === 'none') ? 1 : 2,
               'stroke-dasharray' : dasharray,
               'stroke': 'white'
-              // 'stroke-opacity': 1
-              // 'fill-opacity': random(),
-              // 'fill': random('color')
             } ];
           circle.dontMeasure = true;
           return circle;
@@ -884,13 +856,11 @@ var pl = {debug: false};
     }
   };
 
-  // -----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   pl.Generator = function() {
     this.depth = 5;
-    // this.depth = 3;
     this.sequencesLength = 15;
-    // this.sequencesLength = 10;
   };
 
   pl.Generator.prototype = {
@@ -912,8 +882,7 @@ var pl = {debug: false};
       repeat = repeat || random(1, 3) * 2;
       return function() {
         var originalZoom = this.zoom;
-        // var repeat = 4;
-        for (var i = - repeat / 2; i < repeat / 2; i++) {
+        for (var i = 0; i < repeat; i++) {
           this.zoom = originalZoom +
             originalZoom * i * 0.3;
           this._walker(sequence);
@@ -927,7 +896,6 @@ var pl = {debug: false};
           largeCircleLimit = 2,
           oriLC = pl.stampFactory.recipes.largeCircle.func,
           allowAngleRotation = true || ! random(2);
-      // for (var i = 0, iL = this.depth; i < iL; i++) {
       pl.stampFactory.recipes.largeCircle.func = function () {
         if (largeCircleLimit) {
           largeCircleLimit--;
