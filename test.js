@@ -34,24 +34,26 @@ function test_zoomer() {
   brush.drawComposition(composition);
 }
 
-
 function test_angleRotator() {
   init();
+  pl.debug = true;
   brush.angleRotation = 0.1;
+  brush.zoom = 9;
   composition = [
     [['move', 10, 'right']],
-    [['rect', 6, 6, {'fill' : '#aa0044'}],
-     ['line', 1, 'right']]
+    [ ['rect', 6, 6, {'fill' : '#aa0044'}],
+      ['circle', 1, {'fill' : '#aa0044'}],
+      ['line', 4, 'right'],
+      ['line', 4, 'forward'],
+      ['line', 4, 'left'],
+      ['line', 4, 'back']
+    ]
   ];
-  // composition[0].push(generator._makeZoomer(composition[1]));
   composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
-  // composition = composition[0];
-  // brush = new pl.RaphaelBrush();
   brush.init();
   brush.drawComposition(composition);
 }
-
 function test_zoomAlignement() {
   init();
   composition = [
@@ -395,3 +397,7 @@ describe("angleRotation",  function() {
       return result[0] === 5 && result[1] === 5;
     }).toBeTruthy();
 });
+
+// Shoudn't move point
+// translatePoint
+// directionTranslate

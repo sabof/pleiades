@@ -248,6 +248,7 @@ var pl = {debug: false};
       return newPoint;
     },
 
+    // Should only be used for SVG/canvas drawing
     translatePoint: function(point) {
       var x = Math.round(this._offset[0] + point[0]),
           y = Math.round(this._offset[1] + point[1]);
@@ -324,6 +325,7 @@ var pl = {debug: false};
 
       this.reset();
       this.compass.zoom = this.zoom;
+      this.compass.angleRotation = this.angleRotation;
       this.compass.measure(composition);
 
       var outerRect = this.compass.getOuterRect(true);
@@ -446,7 +448,6 @@ var pl = {debug: false};
           } else {
             self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
             self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
-
             self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
             self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
           }
@@ -487,34 +488,12 @@ var pl = {debug: false};
         this.trackIt(rect);
       },
 
-      // rect: function(width, height, style) {
-      //   var verticalLength = Math.abs(width),
-      //       verticalDirection = (height > 0) ? 'back' : 'forward',
-      //       horizontalLength = Math.abs(height),
-      //       horizontalDirection = (width > 0) ? 'right' : 'left',
-      //       oldPoint = this.point.slice(0);
-      //   this.point = this.directionTranslate(
-      //     this.point,
-      //     horizontalLength,
-      //     horizontalDirection);
-      //   this.point = this.directionTranslate(
-      //     this.point,
-      //     verticalLength,
-      //     verticalDirection);
-      //   this.trackIt(pointsToRect(oldPoint, this.point));
-      // },
-
       rect: function(width, height, style) {
         var pointLB = this.point.slice(0),
             pointRB = this.directionTranslate(pointLB, width, 'right'),
             pointLT = this.directionTranslate(pointLB, height, 'forward'),
             pointRT = this.directionTranslate(pointRB, height, 'forward'),
-            allPoints = [
-              pointLB,
-              pointRB,
-              pointRT,
-              pointLT
-            ];
+            allPoints = [ pointLB, pointRB, pointRT, pointLT ];
         // console.log(JSON.stringify(allPoints));
         // console.log(JSON.stringify(pointsToRect.apply(null, allPoints)));
         this.trackIt(pointsToRect.apply(null, allPoints));
@@ -627,22 +606,23 @@ var pl = {debug: false};
             pointRB = this.directionTranslate(pointLB, width, 'right'),
             pointLT = this.directionTranslate(pointLB, height, 'forward'),
             pointRT = this.directionTranslate(pointRB, height, 'forward'),
-            adjPoints = [
+            allPoints = [
               pointLB,
               pointRB,
               pointRT,
               pointLT
-            ].map(this.translatePoint, this);
+            ],
+            adjPoints = allPoints.map(this.translatePoint, this);
 
         if (rectanglesOverlap(this.mask,
-                              pointsToRect.apply(null, adjPoints)))
+                              pointsToRect.apply(null, allPoints)))
         {
           var pathString =
               'M' + adjPoints[0][0] + ' ' + adjPoints[0][1] +
               'L' + adjPoints[1][0] + ' ' + adjPoints[1][1] +
               'L' + adjPoints[2][0] + ' ' + adjPoints[2][1] +
               'L' + adjPoints[3][0] + ' ' + adjPoints[3][1] +
-              'L' + adjPoints[0][0] + ' ' + adjPoints[0][1];
+              'Z';
           this.paper.path(pathString)
             .attr(style);
         }
@@ -723,10 +703,18 @@ var pl = {debug: false};
 
     recipes: {
       rotate: {
-        probability: 20,
+        probability: 200,
         maxLength: 0,
         func: function() {
           return ['rotate', !! random(2)];
+        }
+      },
+
+      rotateAngle: {
+        probability: 0,
+        maxLength: 0,
+        func: function() {
+          return ['rotateAngle', random() * 2 * Math.PI];
         }
       },
 
@@ -739,7 +727,7 @@ var pl = {debug: false};
       },
 
       move: {
-        probability: 30,
+        probability: 300,
         maxLength: 0,
         func: function() {
           return [
@@ -750,7 +738,7 @@ var pl = {debug: false};
       },
 
       line: {
-        probability: 20,
+        probability: 200,
         maxLength: 1,
         func: function() {
           return [
@@ -765,7 +753,7 @@ var pl = {debug: false};
       },
 
       largeCircle: {
-        probability: 2,
+        probability: 20,
         maxLength: 1,
         iterator: makeLooper(rotateArray(['.', 'none', '--', 'none'],
                                          random(4))),
@@ -787,7 +775,7 @@ var pl = {debug: false};
       },
 
       smallCircle: {
-        probability: 3,
+        probability: 30,
         // probability: 30,
         maxLength: 1,
         func: function() {
@@ -801,7 +789,7 @@ var pl = {debug: false};
       },
 
       ambientRect: {
-        probability: 10,
+        probability: 100,
         maxLength: 1,
         func: function() {
           return [
@@ -815,7 +803,7 @@ var pl = {debug: false};
       },
 
       gradStrip: {
-        probability: 10,
+        probability: 100,
         maxLength: 1,
         func: function() {
           var dimensions = [random(1, 3), random(3, 20)],
@@ -832,7 +820,7 @@ var pl = {debug: false};
       },
 
       highlightRect: {
-        probability: 10,
+        probability: 100,
         maxLength: 1,
         func: function() {
           return ['rect', random(-10, 10), random(-10, 10),
@@ -843,7 +831,7 @@ var pl = {debug: false};
       },
 
       snake: {
-        probability: 5,
+        probability: 50,
         func: function() {
           var blank;
           function makeMove(direction) {
@@ -895,10 +883,10 @@ var pl = {debug: false};
   // -----------------------------------------------------------------------------
 
   pl.Generator = function() {
-    // this.depth = 5;
-    this.depth = 3;
-    // this.sequencesLength = 15;
-    this.sequencesLength = 10;
+    this.depth = 5;
+    // this.depth = 3;
+    this.sequencesLength = 15;
+    // this.sequencesLength = 10;
   };
 
   pl.Generator.prototype = {
@@ -959,14 +947,20 @@ var pl = {debug: false};
         if (sequences.length) {
           if (random(2)) {
             currentSequence.splice(
-              random(sequences.length),
+              random(currentSequence.length),
               0, this._makeZoomer(sequences[0]));
           } else {
             currentSequence.splice(
-              random(sequences.length),
+              random(currentSequence.length),
               0, [ 2 + random(2) * 2, sequences[0] ]);
           }
         }
+        // if (random(10) === 0) {
+        //   var oldAngle = this.brush.
+        //       rotationAngle = random() * 2 * Math.PI;
+        //   currentSequence.splice(random(sequences.length),
+        //                          0, this._makeZoomer(sequences[0]));
+        // }
         sequences.unshift(currentSequence);
       }
       pl.stampFactory.recipes.largeCircle.func = oriLC;

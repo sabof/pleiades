@@ -38,6 +38,7 @@ html {
 
 var generator, composition, ticket, brush,
     running = true;
+// pl.debug = true;
 
 function refresh() {
   var ticketInput = document.getElementById('ticket');
@@ -91,13 +92,13 @@ function init() {
 function step() {
   // SeedRandom.seed('4D30'); // invisible
   // SeedRandom.seed('1421'); // small
-  SeedRandom.seed('189E');
-  brush.angleRotation = 0.1;
+  // SeedRandom.seed('189E');
+  // brush.angleRotation = 0.1;
   composition = generator.make();
   return brush.drawComposition(composition);
 }
 
-switch (0) {
+switch (2) {
 case 1:
   SeedRandom.seed('test');
   init();
@@ -116,31 +117,7 @@ default:
   init();
 }
 
-function test_angleRotator() {
-  init();
-  pl.debug = true;
-  brush.angleRotation = 0.1;
-  brush.zoom = 9;
-  composition = [
-    [['move', 10, 'right']],
-    [ ['rect', 6, 6, {'fill' : '#aa0044'}],
-      ['line', 4, 'right'],
-      ['line', 4, 'forward'],
-      ['line', 4, 'left'],
-      ['line', 4, 'back']
-]
-  ];
-  // composition[0].push(generator._makeZoomer(composition[1]));
-  composition[0].push([2, composition[1]]);
-  composition = [[4, composition[0]]];
-  // composition = composition[0];
-  // brush = new pl.RaphaelBrush();
-  brush.init();
-  brush.drawComposition(composition);
-}
-
-
-test_angleRotator()
+// test_angleRotator()
 
 </script>
     </body>
