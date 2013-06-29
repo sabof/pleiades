@@ -213,10 +213,10 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorMaker = function() {};
+  pl.ColorFactory = function() {};
 
-  pl.ColorMaker.prototype = {
-    constructor: pl.ColorMaker,
+  pl.ColorFactory.prototype = {
+    constructor: pl.ColorFactory,
 
     background: function() {},
     highlight: function() {},
@@ -662,7 +662,9 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.stampFactory = {
+  pl.StampFactory = function() {};
+
+  pl.StampFactory.prototype = {
     reset: function() {
       this.recipes.largeCircle.iterator =
         makeLooper(rotateArray(['.', 'none', '--', 'none'], random(4)));
@@ -883,9 +885,11 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.CompositionFactory = function() {
+  pl.CompositionFactory = function(stampFactory, colorFactory) {
     this.depth = 5;
     this.sequencesLength = 15;
+    this.stampFactory = stampFactory;
+    this.colorFactory = colorFactory;
   };
 
   pl.CompositionFactory.prototype = {
@@ -919,9 +923,9 @@ var pl = {debug: false};
     make: function() {
       var sequences = [],
           largeCircleLimit = 2,
-          oriLC = pl.stampFactory.recipes.largeCircle.func,
+          oriLC = this.stampFactory.recipes.largeCircle.func,
           allowAngleRotation = true || ! random(2);
-      pl.stampFactory.recipes.largeCircle.func = function () {
+      this.stampFactory.recipes.largeCircle.func = function () {
         if (largeCircleLimit) {
           largeCircleLimit--;
           return oriLC.call(this);
@@ -933,14 +937,14 @@ var pl = {debug: false};
         var currentSequence = [];
 
         if (i <= 1) {
-          pl.stampFactory.recipes.largeCircle.probability = 70;
+          this.stampFactory.recipes.largeCircle.probability = 70;
         } else {
-          pl.stampFactory.recipes.largeCircle.probability = 0;
+          this.stampFactory.recipes.largeCircle.probability = 0;
         }
-        pl.stampFactory.reset();
+        this.stampFactory.reset();
 
         for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
-          currentSequence.unshift(pl.stampFactory.make());
+          currentSequence.unshift(this.stampFactory.make());
         }
         if (sequences.length) {
           if (random(2)) {
@@ -966,7 +970,7 @@ var pl = {debug: false};
         }
         sequences.unshift(currentSequence);
       }
-      pl.stampFactory.recipes.largeCircle.func = oriLC;
+      this.stampFactory.recipes.largeCircle.func = oriLC;
       return [[4, sequences[0]]];
     }
   };

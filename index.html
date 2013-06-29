@@ -36,8 +36,8 @@ html {
 
 <script>
 
-var generator, composition, ticket, brush,
-    running = true;
+var generator, composition, ticket, brush, stampFactory;
+var running = true;
 // pl.debug = true;
 
 function refresh() {
@@ -85,7 +85,11 @@ function init() {
   initUI();
   brush = new pl.RaphaelPainter();
   brush.init();
-  generator = new pl.CompositionFactory()
+
+  stampFactory = new pl.StampFactory();
+  colorFactory = new pl.ColorFactory();
+  generator = new pl.CompositionFactory(stampFactory, colorFactory);
+
   // brush._showBoundingBox = true;
 }
 
