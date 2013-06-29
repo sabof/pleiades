@@ -34,6 +34,24 @@ function test_zoomer() {
   brush.drawComposition(composition);
 }
 
+
+function test_angleRotator() {
+  init();
+  brush.angleRotation = 0.1;
+  composition = [
+    [['move', 10, 'right']],
+    [['rect', 6, 6, {'fill' : '#aa0044'}],
+     ['line', 1, 'right']]
+  ];
+  // composition[0].push(generator._makeZoomer(composition[1]));
+  composition[0].push([2, composition[1]]);
+  composition = [[4, composition[0]]];
+  // composition = composition[0];
+  // brush = new pl.RaphaelBrush();
+  brush.init();
+  brush.drawComposition(composition);
+}
+
 function test_zoomAlignement() {
   init();
   composition = [
@@ -366,4 +384,14 @@ describe("RaphaelBrush", function() {
       return true;
     }).toBeTruthy();
   });
+});
+
+// -----------------------------------------------------------------------------
+
+describe("angleRotation",  function() {
+  it('Should retrun the same number when rotated by 0 radias')
+    .expect(function() {
+      var result = pl.util.rotate([0, 0], [5, 5], 0);
+      return result[0] === 5 && result[1] === 5;
+    }).toBeTruthy();
 });
