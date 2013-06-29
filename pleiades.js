@@ -282,7 +282,11 @@ var pl = {debug: false};
     },
 
     rotateAngle: function(angle) {
-      this.angleRotation = angle;
+      var newAngle = this.angleRotation + angle;
+      if (newAngle < 0) {
+        newAngle += Math.PI * 2;
+      }
+      this.angleRotation = newAngle;
     },
 
     reflect: function(across) {
@@ -921,7 +925,8 @@ var pl = {debug: false};
     make: function() {
       var sequences = [],
           largeCircleLimit = 2,
-          oriLC = pl.stampFactory.recipes.largeCircle.func;
+          oriLC = pl.stampFactory.recipes.largeCircle.func,
+          allowAngleRotation = true || ! random(2);
       // for (var i = 0, iL = this.depth; i < iL; i++) {
       pl.stampFactory.recipes.largeCircle.func = function () {
         if (largeCircleLimit) {
@@ -935,14 +940,14 @@ var pl = {debug: false};
         var currentSequence = [];
 
         if (i <= 1) {
-          pl.stampFactory.recipes.largeCircle.probability = 7;
+          pl.stampFactory.recipes.largeCircle.probability = 70;
         } else {
           pl.stampFactory.recipes.largeCircle.probability = 0;
         }
         pl.stampFactory.reset();
 
         for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
-          currentSequence.push(pl.stampFactory.make());
+          currentSequence.unshift(pl.stampFactory.make());
         }
         if (sequences.length) {
           if (random(2)) {
@@ -955,12 +960,17 @@ var pl = {debug: false};
               0, [ 2 + random(2) * 2, sequences[0] ]);
           }
         }
-        // if (random(10) === 0) {
-        //   var oldAngle = this.brush.
-        //       rotationAngle = random() * 2 * Math.PI;
-        //   currentSequence.splice(random(sequences.length),
-        //                          0, this._makeZoomer(sequences[0]));
-        // }
+        if (allowAngleRotation) {
+          var position = random(currentSequence.length),
+              rotationAngle = Math.PI / 4 ||
+              Math.max(1, random() * 2 * Math.PI);
+          currentSequence.splice(position,
+                                 0,
+                                 ['rotateAngle', rotationAngle]);
+          currentSequence.splice(random(position, currentSequence.length + 1),
+                                 0,
+                                 ['rotateAngle', -rotationAngle]);
+        }
         sequences.unshift(currentSequence);
       }
       pl.stampFactory.recipes.largeCircle.func = oriLC;
