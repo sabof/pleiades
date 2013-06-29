@@ -6,6 +6,7 @@
 var pl = {debug: false};
 
 (function () {
+  "use strict";
   var random = function(min, max) {
     if (min instanceof Array) {
       return min[random(min.length)];
@@ -246,13 +247,6 @@ var pl = {debug: false};
             this.angleRotation
           );
       return newPoint;
-    },
-
-    // Should only be used for SVG/canvas drawing
-    translatePoint: function(point) {
-      var x = Math.round(this._offset[0] + point[0]),
-          y = Math.round(this._offset[1] + point[1]);
-      return [x, y];
     },
 
     untranslatePoint: function(point) {
@@ -578,6 +572,12 @@ var pl = {debug: false};
         canvas.parentNode.removeChild(canvas);
       },
 
+      _translatePoint: function(point) {
+        var x = Math.round(this._offset[0] + point[0]),
+            y = Math.round(this._offset[1] + point[1]);
+        return [x, y];
+      },
+
       reset: function() {
         this.paper.clear();
         this.paper.setSize(
@@ -589,11 +589,11 @@ var pl = {debug: false};
 
       line: function(length, direction, style) {
         var oldPoint = this.point.slice(0);
-        var adjOldPoint = this.translatePoint(this.point);
+        var adjOldPoint = this._translatePoint(this.point);
         this.move(length, direction);
         if (rectanglesOverlap(this.mask, oldPoint) ||
             rectanglesOverlap(this.mask, this.point)) {
-          var adjPoint = this.translatePoint(this.point);
+          var adjPoint = this._translatePoint(this.point);
           var pathString = (
             'M' + adjOldPoint[0] +
               ' ' + adjOldPoint[1] +
@@ -616,7 +616,7 @@ var pl = {debug: false};
               pointRT,
               pointLT
             ],
-            adjPoints = allPoints.map(this.translatePoint, this);
+            adjPoints = allPoints.map(this._translatePoint, this);
 
         if (rectanglesOverlap(this.mask,
                               pointsToRect.apply(null, allPoints)))
@@ -642,7 +642,7 @@ var pl = {debug: false};
         ];
         // The mask is unadjusted
         if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this.translatePoint(this.point);
+          var adjPoint = this._translatePoint(this.point);
           this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
             .attr(style);
         }
