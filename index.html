@@ -38,6 +38,7 @@ html {
 
 var generator, composition, ticket, brush,
     running = true;
+// pl.debug = true;
 
 function refresh() {
   var ticketInput = document.getElementById('ticket');
@@ -51,7 +52,7 @@ function refresh() {
       }
     }
   }
-  setTimeout(refresh, 4000);
+  setTimeout(refresh, 6000);
 }
 
 function initUI() {
@@ -90,8 +91,9 @@ function init() {
 
 function step() {
   // SeedRandom.seed('4D30'); // invisible
-  // SeedRandom.seed('1420'); // small
-  // SeedRandom.seed('5294');
+  // SeedRandom.seed('1421'); // small
+  // SeedRandom.seed('189E');
+  // brush.angleRotation = 0.1;
   composition = generator.make();
   return brush.drawComposition(composition);
 }
@@ -114,6 +116,8 @@ case 0:
 default:
   init();
 }
+
+// test_angleRotator()
 
 </script>
     </body>

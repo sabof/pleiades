@@ -66,6 +66,17 @@ var pl = {debug: false};
     return array;
   };
 
+  var rotatePoint = function(pivot, point, angle) {
+    // Rotate clockwise, angle in radians
+    var x = ((Math.cos(angle) * (point[0] - pivot[0])) -
+             (Math.sin(angle) * (point[1] - pivot[1])) +
+             pivot[0]),
+        y = ((Math.sin(angle) * (point[0] - pivot[0])) +
+             (Math.cos(angle) * (point[1] - pivot[1])) +
+             pivot[1]);
+    return [x, y];
+  };
+
   var rectToPoints = function(rect) {
     return [
       [rect[0], rect[1]],
@@ -73,11 +84,14 @@ var pl = {debug: false};
     ];
   };
 
-  var pointsToRect = function(a, b) {
-    var minX = Math.min(a[0], b[0]);
-    var maxX = Math.max(a[0], b[0]);
-    var minY = Math.min(a[1], b[1]);
-    var maxY = Math.max(a[1], b[1]);
+  var pointsToRect = function(/* rest */) {
+    var map = Array.prototype.map,
+        xs = map.call(arguments, function(arr) { return arr[0]; }),
+        ys = map.call(arguments, function(arr) { return arr[1]; }),
+        minX = xs.reduce(function(a, b) { return Math.min(a, b); }),
+        maxX = xs.reduce(function(a, b) { return Math.max(a, b); }),
+        minY = ys.reduce(function(a, b) { return Math.min(a, b); }),
+        maxY = ys.reduce(function(a, b) { return Math.max(a, b); });
     return [
       minX,
       minY,
@@ -167,11 +181,9 @@ var pl = {debug: false};
     },
 
     rangesOverlap: rangesOverlap,
-
+    rotatePoint: rotatePoint,
     rectanglesOverlap: rectanglesOverlap,
-
     pointsToRect: pointsToRect,
-
     rectToPoints: rectToPoints
   };
 
@@ -206,6 +218,7 @@ var pl = {debug: false};
     this.directions = ['forward', 'right', 'back', 'left'];
     // this.zoom = 3;
     this.zoom = 6;
+    this.angleRotation = 0;
   };
 
   pl.Brush.prototype = {
@@ -214,20 +227,28 @@ var pl = {debug: false};
     reset: function() {},
 
     directionTranslate: function(point, length, direction) {
+      point = point || this.point;
       var table = [
         [0, -1],
         [1, 0],
         [0, 1],
         [-1, 0]
-      ];
-      var index = this.directions.indexOf(direction);
-      point = [
-        point[0] + table[index][0] * length * this.zoom,
-        point[1] + table[index][1] * length * this.zoom
-      ];
-      return point;
+      ],
+          index = this.directions.indexOf(direction),
+          oriPoint = point.slice(0),
+          rotate1 = [
+            oriPoint[0] + table[index][0] * length * this.zoom,
+            oriPoint[1] + table[index][1] * length * this.zoom
+          ],
+          newPoint = rotatePoint(
+            oriPoint,
+            rotate1,
+            this.angleRotation
+          );
+      return newPoint;
     },
 
+    // Should only be used for SVG/canvas drawing
     translatePoint: function(point) {
       var x = Math.round(this._offset[0] + point[0]),
           y = Math.round(this._offset[1] + point[1]);
@@ -250,12 +271,22 @@ var pl = {debug: false};
         throw new Error('Illegal direction: ' + direction);
       }
 
-      this.point = this.directionTranslate(
-        this.point, length, direction);
+      var original = this.point.slice(0),
+          translatedPoint = this.directionTranslate(
+            this.point, length, direction);
+      this.point = translatedPoint;
     },
 
     rotate: function(reverse) {
       this.directions = rotateArray(this.directions, reverse ? -1 : undefined);
+    },
+
+    rotateAngle: function(angle) {
+      var newAngle = this.angleRotation + angle;
+      if (newAngle < 0) {
+        newAngle += Math.PI * 2;
+      }
+      this.angleRotation = newAngle;
     },
 
     reflect: function(across) {
@@ -297,6 +328,8 @@ var pl = {debug: false};
           imageCenter;
 
       this.reset();
+      this.compass.zoom = this.zoom;
+      this.compass.angleRotation = this.angleRotation;
       this.compass.measure(composition);
 
       var outerRect = this.compass.getOuterRect(true);
@@ -317,15 +350,15 @@ var pl = {debug: false};
         Math.round(windowCenter[1] - imageCenter[1])
       ];
       var windowTranslatedRect =
-        pointsToRect.apply(
-          null,
-          rectToPoints([0, 0, window.innerWidth, window.innerHeight])
-            .map(
-              function(point) {
-                return [
-                  point[0] - this._offset[0],
-                  point[1] - this._offset[1]
-                ];
+          pointsToRect.apply(
+            null,
+            rectToPoints([0, 0, window.innerWidth, window.innerHeight])
+              .map(
+                function(point) {
+                  return [
+                    point[0] - this._offset[0],
+                    point[1] - this._offset[1]
+                  ];
               },
               this));
       // console.log(windowTranslatedRect);
@@ -419,7 +452,6 @@ var pl = {debug: false};
           } else {
             self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
             self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
-
             self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
             self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
           }
@@ -461,21 +493,15 @@ var pl = {debug: false};
       },
 
       rect: function(width, height, style) {
-        var verticalLength = Math.abs(width),
-            verticalDirection = (height > 0) ? 'back' : 'forward',
-            horizontalLength = Math.abs(height),
-            horizontalDirection = (width > 0) ? 'right' : 'left',
-            oldPoint = this.point.slice(0);
-        this.point = this.directionTranslate(
-          this.point,
-          horizontalLength,
-          horizontalDirection);
-        this.point = this.directionTranslate(
-          this.point,
-          verticalLength,
-          verticalDirection);
-        this.trackIt(pointsToRect(oldPoint, this.point));
-
+        var pointLB = this.point.slice(0),
+            pointRB = this.directionTranslate(pointLB, width, 'right'),
+            pointLT = this.directionTranslate(pointLB, height, 'forward'),
+            pointRT = this.directionTranslate(pointRB, height, 'forward'),
+            allPoints = [ pointLB, pointRB, pointRT, pointLT ];
+        // console.log(JSON.stringify(allPoints));
+        // console.log(JSON.stringify(pointsToRect.apply(null, allPoints)));
+        this.trackIt(pointsToRect.apply(null, allPoints));
+        this.point = pointRT;
       },
 
       line: function(length, direction) {
@@ -498,7 +524,8 @@ var pl = {debug: false};
               }
             } else if (! stamp.dontMeasure) {
               self[stamp[0]].apply(self, stamp.slice(1));
-            }}); },
+            }});
+      },
 
       measure: function(composition) {
         this.reset();
@@ -579,30 +606,31 @@ var pl = {debug: false};
       },
 
       rect: function(width, height, style) {
-        var oldPoint = this.point.slice(0),
-            adjOldPoint = this.translatePoint(oldPoint),
-            verticalLength = Math.abs(width),
-            verticalDirection = (height > 0) ? 'back' : 'forward',
-            horizontalLength = Math.abs(height),
-            horizontalDirection = (width > 0) ? 'right' : 'left';
+        var pointLB = this.point.slice(0),
+            pointRB = this.directionTranslate(pointLB, width, 'right'),
+            pointLT = this.directionTranslate(pointLB, height, 'forward'),
+            pointRT = this.directionTranslate(pointRB, height, 'forward'),
+            allPoints = [
+              pointLB,
+              pointRB,
+              pointRT,
+              pointLT
+            ],
+            adjPoints = allPoints.map(this.translatePoint, this);
 
-        this.point = this.directionTranslate(
-          this.point,
-          horizontalLength,
-          horizontalDirection);
-        this.point = this.directionTranslate(
-          this.point,
-          verticalLength,
-          verticalDirection);
-        var newPoint = this.point;
-
-        var adjPoint = this.translatePoint(this.point);
-        if (rectanglesOverlap(this.mask, pointsToRect(oldPoint, newPoint))) {
-          this.paper.rect.apply(
-            this.paper,
-            pointsToRect(adjOldPoint, adjPoint)
-          ).attr(style);
+        if (rectanglesOverlap(this.mask,
+                              pointsToRect.apply(null, allPoints)))
+        {
+          var pathString =
+              'M' + adjPoints[0][0] + ' ' + adjPoints[0][1] +
+              'L' + adjPoints[1][0] + ' ' + adjPoints[1][1] +
+              'L' + adjPoints[2][0] + ' ' + adjPoints[2][1] +
+              'L' + adjPoints[3][0] + ' ' + adjPoints[3][1] +
+              'Z';
+          this.paper.path(pathString)
+            .attr(style);
         }
+        this.point = pointRT;
       },
 
       circle: function(radius, style) {
@@ -679,10 +707,18 @@ var pl = {debug: false};
 
     recipes: {
       rotate: {
-        probability: 20,
+        probability: 200,
         maxLength: 0,
         func: function() {
           return ['rotate', !! random(2)];
+        }
+      },
+
+      rotateAngle: {
+        probability: 0,
+        maxLength: 0,
+        func: function() {
+          return ['rotateAngle', random() * 2 * Math.PI];
         }
       },
 
@@ -695,7 +731,7 @@ var pl = {debug: false};
       },
 
       move: {
-        probability: 30,
+        probability: 300,
         maxLength: 0,
         func: function() {
           return [
@@ -706,7 +742,7 @@ var pl = {debug: false};
       },
 
       line: {
-        probability: 20,
+        probability: 200,
         maxLength: 1,
         func: function() {
           return [
@@ -721,7 +757,7 @@ var pl = {debug: false};
       },
 
       largeCircle: {
-        probability: 2,
+        probability: 20,
         maxLength: 1,
         iterator: makeLooper(rotateArray(['.', 'none', '--', 'none'],
                                          random(4))),
@@ -743,7 +779,7 @@ var pl = {debug: false};
       },
 
       smallCircle: {
-        probability: 3,
+        probability: 30,
         // probability: 30,
         maxLength: 1,
         func: function() {
@@ -757,7 +793,7 @@ var pl = {debug: false};
       },
 
       ambientRect: {
-        probability: 10,
+        probability: 100,
         maxLength: 1,
         func: function() {
           return [
@@ -771,7 +807,7 @@ var pl = {debug: false};
       },
 
       gradStrip: {
-        probability: 10,
+        probability: 100,
         maxLength: 1,
         func: function() {
           var dimensions = [random(1, 3), random(3, 20)],
@@ -788,7 +824,7 @@ var pl = {debug: false};
       },
 
       highlightRect: {
-        probability: 10,
+        probability: 100,
         maxLength: 1,
         func: function() {
           return ['rect', random(-10, 10), random(-10, 10),
@@ -799,7 +835,7 @@ var pl = {debug: false};
       },
 
       snake: {
-        probability: 5,
+        probability: 50,
         func: function() {
           var blank;
           function makeMove(direction) {
@@ -889,7 +925,8 @@ var pl = {debug: false};
     make: function() {
       var sequences = [],
           largeCircleLimit = 2,
-          oriLC = pl.stampFactory.recipes.largeCircle.func;
+          oriLC = pl.stampFactory.recipes.largeCircle.func,
+          allowAngleRotation = true || ! random(2);
       // for (var i = 0, iL = this.depth; i < iL; i++) {
       pl.stampFactory.recipes.largeCircle.func = function () {
         if (largeCircleLimit) {
@@ -903,25 +940,36 @@ var pl = {debug: false};
         var currentSequence = [];
 
         if (i <= 1) {
-          pl.stampFactory.recipes.largeCircle.probability = 7;
+          pl.stampFactory.recipes.largeCircle.probability = 70;
         } else {
           pl.stampFactory.recipes.largeCircle.probability = 0;
         }
         pl.stampFactory.reset();
 
         for (var j = 0, jL = this.sequencesLength; j < jL; j++) {
-          currentSequence.push(pl.stampFactory.make());
+          currentSequence.unshift(pl.stampFactory.make());
         }
         if (sequences.length) {
           if (random(2)) {
             currentSequence.splice(
-              random(sequences.length),
+              random(currentSequence.length),
               0, this._makeZoomer(sequences[0]));
           } else {
             currentSequence.splice(
-              random(sequences.length),
+              random(currentSequence.length),
               0, [ 2 + random(2) * 2, sequences[0] ]);
           }
+        }
+        if (allowAngleRotation) {
+          var position = random(currentSequence.length),
+              rotationAngle = Math.PI / 4 ||
+              Math.max(1, random() * 2 * Math.PI);
+          currentSequence.splice(position,
+                                 0,
+                                 ['rotateAngle', rotationAngle]);
+          currentSequence.splice(random(position, currentSequence.length + 1),
+                                 0,
+                                 ['rotateAngle', -rotationAngle]);
         }
         sequences.unshift(currentSequence);
       }
