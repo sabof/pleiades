@@ -322,7 +322,8 @@ var pl = {debug: false};
     smallCircle: function() {
       return {
         'stroke': this.outline(),
-        'fill': this.highlight()
+        'fill': this.highlight(),
+        'fill-opacity': random()
       };
     },
 
@@ -350,30 +351,32 @@ var pl = {debug: false};
       papyrus: (function() {
 
         function randomColor() {
-          return pl.color.vary(random(['#0000FF', '#000000', '#FF0000']),
-                               50);
+          return pl.color.vary(random(['#0000FF',
+                                        '#CC0000',
+                                        // '#008800',
+                                        '#000000']),
+                               150);
         }
 
         return extend(new pl.ColorTheme(), {
           // Colors
-          outline: '#000000',
           background: '#C7C289',
-
+          outline: '#000000',
           shadow: function() {
-            return random('color');
+            return randomColor();
           },
-
-          gradHighlight: function() {
-            var oriColor = random('color');
+          highlight: randomColor,
+          gradient: function() {
+            var oriColor = randomColor();
             return '45-' +
-              pl.color.vary(oriColor, 100) + ':5-' +
-              pl.color.vary(oriColor, 100) + ':95';
+              pl.color.vary(oriColor, 50) + ':5-' +
+              pl.color.vary(oriColor, 50) + ':95';
           },
 
           // Styles
-          largeCircle: function() {
-            return { 'stroke': "#FFFFFF" };
-          }
+          largeCircle: constantly(
+            { 'stroke': "#FFFFFF" }
+          )
 
         });
 
@@ -395,8 +398,7 @@ var pl = {debug: false};
         outline: '#333333',
         shadow: '#000000',
         highlight: '#999999',
-        // largeCircles: constantly('#880000')
-        largeCircles: constantly('#FFFFFF'),
+        largeCircle: constantly('#FFFFFF'),
         gradHighlight: function() {
           var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
           return '45-' +
@@ -754,7 +756,11 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.RaphaelPainter = function() {};
+  pl.RaphaelPainter = function(properties) {
+    if (properties) {
+      extend(this, properties);
+    }
+  };
 
   pl.RaphaelPainter.prototype = extend(
     new pl.Painter(),
@@ -999,11 +1005,7 @@ var pl = {debug: false};
           return [
             'circle',
             random(1, 2),
-            { 'stroke-width': random(1, 3),
-              'fill-opacity': random(),
-              'fill': this.colorTheme.highlight(),
-              'stroke': this.colorTheme.outline()
-            } ]; }
+            { 'stroke-width': random(1, 3) } ]; }
       },
 
       ambientRect: {
@@ -1037,9 +1039,7 @@ var pl = {debug: false};
         maxLength: 1,
         func: function() {
           return ['rect', random(-10, 10), random(-10, 10),
-                  { 'stroke-width': 2,
-                    'stroke-opacity': 1 ,
-                    'fill-opacity': 1 }]; }
+                  { 'stroke-width': 2 }]; }
       },
 
       snake: {
@@ -1073,7 +1073,9 @@ var pl = {debug: false};
   pl.CompositionFactory = function(properties) {
     this.depth = 5;
     this.sequenceLength = 15;
-    extend(this, properties);
+    if (properties) {
+      extend(this, properties);
+    }
   };
 
   pl.CompositionFactory.prototype = {
@@ -1108,10 +1110,10 @@ var pl = {debug: false};
       var sequences = [],
           largeCircleLimit = 2,
           allowAngleRotation = true || ! random(2),
-          colorTheme = this.colorThemeFactory.make();
-      this.stampFactory.reset(); // creates a new largeCircle.func
-      this.stampFactory.recipes.largeCircle.func = wrap(
-        this.stampFactory.recipes.largeCircle.func,
+          colorTheme = this.colorThemeFactory.make(),
+          self = this;
+      self.stampFactory.recipes.largeCircle.func = wrap(
+        self.stampFactory.recipes.largeCircle.func,
         function(oriFunc) {
           if (largeCircleLimit) {
             largeCircleLimit--;
@@ -1121,6 +1123,8 @@ var pl = {debug: false};
           }
         }
       );
+
+
       this.stampFactory.colorTheme = colorTheme;
       for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
@@ -1130,6 +1134,7 @@ var pl = {debug: false};
         } else {
           this.stampFactory.recipes.largeCircle.probability = 0;
         }
+        this.stampFactory.makeMake();
         for (var j = 0, jL = this.sequenceLength; j < jL; j++) {
           currentSequence.unshift(this.stampFactory.make());
         }

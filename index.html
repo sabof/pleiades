@@ -72,7 +72,7 @@ function init(type) {
   stampFactory.init();
   previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
-    painter: new pl.RaphaelPainter(),
+    painter: new pl.RaphaelPainter({zoom: 4}),
     loopInterval: 5,
     // beforeStepHook: function() {
     // var ticketInput = document.getElementById('ticket');
@@ -82,7 +82,7 @@ function init(type) {
       document.getElementById('ticket').value = previewer.ticket;
     },
     compositionFactory: new pl.CompositionFactory({
-      depth: 4,
+      depth: 6,
       sequenceLength: 15,
       stampFactory: stampFactory,
       colorThemeFactory: colorThemeFactory
