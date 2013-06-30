@@ -7,6 +7,13 @@
 html {
   background: #C7C289;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
 }
 
 #ticket {
@@ -29,10 +36,11 @@ html {
         </style>
     </head>
     <body>
-        <input id="ticket" type="text" size="4"/>
-        <script src="lib/raphael.js"></script>
-        <script src="lib/seedrandom.js"></script>
-        <script src="pleiades.js"></script>
+      <canvas id="pleiades-canvas"></canvas>
+      <input id="ticket" type="text" size="4"/>
+      <script src="lib/raphael.js"></script>
+      <script src="lib/seedrandom.js"></script>
+      <script src="pleiades.js"></script>
 
 <script>
 
@@ -69,8 +77,10 @@ function init(type) {
   window.tmp = SeedRandom.getState();
   var colorThemeFactory = new pl.ColorThemeFactory(),
       stampFactory = new pl.StampFactory(),
-      brush = new pl.RaphaelBrush(),
+      // brush = new pl.RaphaelBrush(),
+      brush = new pl.CanvasBrush(),
       compass = new pl.Compass();
+  brush.canvas = document.getElementById('pleiades-canvas');
   brush.init();
   stampFactory.init();
   previewer = new pl.Previewer({

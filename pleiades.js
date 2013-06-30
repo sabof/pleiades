@@ -203,6 +203,86 @@ var pl = {debug: false};
 
   function ignore() {}
 
+  // ---------------------------------------------------------------------------
+
+  function Color(string) {
+    /*jshint boss:true*/
+    var type, parsed, matches,
+        self = (this === undefined || this === window) ?
+        Object.create(Color.prototype) : this;
+    if (matches = string.match(/rgba\((\d+), ?(\d+), ?(\d+), ?(\d+)\)/i)) {
+      parsed = matches.slice(1).map(Number);
+      type = 'rbga';
+    } else if (matches = string.match(/rgb\((\d+), ?(\d+), ?(\d+)\)/i)) {
+      parsed = matches.slice(1).map(Number);
+      type = 'rbg';
+    } else if (matches = string.match(/#([\dA-F]{2})([\dA-F]{2})([\dA-F]{2})/i)) {
+      parsed = matches.slice(1).map(function(hex) {
+        return parseInt(hex, 16);
+      });
+      type = 'hex';
+    } else if (matches = string.match(/#([\dA-F])([\dA-F])([\dA-F])/i)) {
+      parsed = matches.slice(1).map(function(hex) {
+        return parseInt(hex + hex, 16);
+      });
+      type = 'hex';
+    } else {
+      throw new Error('Couldn\'t parse: ' + string);
+    }
+    self.parsed = parsed;
+    self.type = type;
+    return self;
+  }
+
+  (function() {
+    function to(values, format) {
+      if (format === 'rgba' ||
+          (values[3] !== undefined) && ! format)
+      {
+        return 'rgba(' +
+          values[0] + ', ' +
+          values[1] + ', ' +
+          values[2] + ', ' +
+          (values[3] === undefined) ? 1 : values[3] +
+          ')';
+      }
+      if (format === 'rgb') {
+        return 'rgb(' +
+          values[0] + ', ' +
+          values[1] + ', ' +
+          values[2] + ')';
+      }
+      return String.prototype.concat
+        .apply('#', values.slice(0, 3)
+               .map(function(value) {
+                 return value.toString(16);
+               }))
+      .toUpperCase();
+    }
+
+    Color.prototype = {
+      constructor: Color,
+      vary: function(intensity) {
+        intensity = intensity || 10;
+        var processed = this.parsed.map(
+          function(channel) {
+            var raw = channel + (random(intensity * 2) - intensity),
+                normalized = Math.min(255, Math.max(0, raw)),
+                stringified = pl.util.ensureLength(normalized.toString(16), 2);
+            return stringified;
+          });
+        // return String.prototype.concat.apply('#', processed);
+      },
+      toRGB: function() { return to(this.parsed, 'rgb'); },
+      toRGBA: function() { return to(this.parsed, 'rgba'); },
+      toHEX: function() { return to(this.parsed, 'hex'); },
+      toString: function() { return to(this.parsed); }
+    };
+
+  }());
+
+  // ---------------------------------------------------------------------------
+
   pl.util = {
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
@@ -488,6 +568,13 @@ var pl = {debug: false};
         );
       },
 
+      translateAttributes: function(attributes) {
+        var attr = attributes.slice(0);
+        if (attr['stroke-dasharray']) {
+
+        }
+      },
+
       polyline: function(points, attributes) {
         if (rectanglesOverlap(this.mask,
                               pointsToRect.apply(null, points)))
@@ -532,39 +619,64 @@ var pl = {debug: false};
         this.context = this.canvas.getContext('2d');
       },
 
+      setupAttributes: function(attributes) {
+        /*jshint sub: true*/
+        var ctx = this.context;
+        if (attributes['stroke-width']) {
+          ctx.lineWidth = attributes['stroke-width'];
+        }
+        if (attributes['stroke']) {
+          this.context.strokeStyle = attributes['stroke'];
+        }
+        if (attributes['fill']) {
+          this.context.fillStyle = attributes['fill'];
+        }
+        if (attributes['fill']) {
+          this.context.fillStyle = attributes['fill'];
+        }
+      },
+
       reset: function() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        // Possibly unnecessary.
+        // Unnecessary?
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // this.context.fillStyle = '#FF0000';
+        this.context.strokeStyle = '#0000FF';
+        this.context.lineWidth = 3;
       },
 
       polyline: function(points, attributes) {
-        if (rectanglesOverlap(this.mask,
-                              pointsToRect.apply(null, points)))
-        {
-          var adjPoints = points.map(this._translatePoint, this),
-              pathString = 'M'.concat(adjPoints.map(function(pair) {
-                return pair[0] + ' ' + pair[1];
-              }).join('L'), 'Z');
-          this.paper.path(pathString)
-            .attr(attributes);
+        var ctx = this.context,
+            adjPoints = points.map(this._translatePoint, this);
+        ctx.save();
+        this.setupAttributes(attributes);
+        ctx.beginPath();
+        ctx.moveTo.apply(ctx, adjPoints[0]);
+
+        adjPoints.slice(1).forEach(function(point) {
+          ctx.lineTo.apply(ctx, point);
+        });
+
+        if (adjPoints.length > 2) {
+          ctx.closePath();
+          ctx.fill();
         }
+        ctx.stroke();
+        ctx.restore();
       },
 
       circle: function(point, radius, attributes) {
-        var rect = [
-          point[0] - radius,
-          point[1] - radius,
-          radius * 2,
-          radius * 2
-        ];
-        // The mask is unadjusted
-        if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this._translatePoint(point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius)
-            .attr(attributes);
-        }
+        var adjPoint = this._translatePoint(point),
+            ctx = this.context;
+
+        ctx.save();
+        this.setupAttributes(attributes);
+        ctx.beginPath();
+        ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
+        // ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       }
     });
 
@@ -1177,8 +1289,10 @@ var pl = {debug: false};
           allowAngleRotation = true || ! random(2),
           colorTheme = this.colorThemeFactory.make(),
           self = this;
-      self.stampFactory.recipes.largeCircle.func = wrap(
-        self.stampFactory.recipes.largeCircle.func,
+      this.stampFactory.reset();
+      this.stampFactory.colorTheme = colorTheme;
+      this.stampFactory.recipes.largeCircle.func = wrap(
+        this.stampFactory.recipes.largeCircle.func,
         function(oriFunc) {
           if (largeCircleLimit) {
             largeCircleLimit--;
@@ -1189,8 +1303,6 @@ var pl = {debug: false};
         }
       );
 
-
-      this.stampFactory.colorTheme = colorTheme;
       for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
 
