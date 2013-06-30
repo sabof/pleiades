@@ -457,17 +457,70 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.RaphaelBrush = function() {};
+  pl.Brush = function() {
+    this._offset = [0, 0];
+  };
 
-  pl.RaphaelBrush = {
-    constructor: pl.RaphaelBrush,
-    polyline: function(points, attributes) {
-
-    },
-    circle: function(point, attributes) {
-
+  pl.Brush.prototype = {
+    _translatePoint: function(point) {
+      var x = Math.round(this._offset[0] + point[0]),
+          y = Math.round(this._offset[1] + point[1]);
+      return [x, y];
     }
   };
+
+  // ---------------------------------------------------------------------------
+
+  pl.RaphaelBrush = function() {
+    this.mask = [0, 0, 0, 0];
+    this.paper = null;
+  };
+
+  pl.RaphaelBrush.prototype = extend(
+    new pl.Brush(),
+    { constructor: pl.RaphaelBrush,
+
+      init: function() {
+        this.paper = new Raphael(
+          0, 0,
+          window.innerWidth,
+          window.innerHeight
+        );
+      },
+
+      polyline: function(points, attributes) {
+        if (rectanglesOverlap(this.mask,
+                              pointsToRect.apply(null, points)))
+        {
+          var adjPoints = points.map(this._translatePoint, this),
+              pathString = 'M'.concat(adjPoints.map(function(pair) {
+                return pair[0] + ' ' + pair[1];
+              }).join('L'), 'Z');
+          console.log(pathString);
+          this.paper.path(pathString)
+            .attr(attributes);
+        }
+      },
+
+      circle: function(point, radius, attributes) {
+        var rect = [
+          point[0] - radius,
+          point[1] - radius,
+          radius * 2,
+          radius * 2
+        ];
+        console.log(rect);
+        // The mask is unadjusted
+        if (rectanglesOverlap(rect, this.mask)) {
+          console.log(this.mask);
+
+          var adjPoint = this._translatePoint(point);
+          console.log(adjPoint);
+          this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
+            .attr(attributes);
+        }
+      }
+    });
 
   // ---------------------------------------------------------------------------
 
@@ -593,6 +646,7 @@ var pl = {debug: false};
         Math.round(windowCenter[0] - imageCenter[0]),
         Math.round(windowCenter[1] - imageCenter[1])
       ];
+      this.brush._offset = this._offset;
       var windowTranslatedRect =
           pointsToRect.apply(
             null,
@@ -630,6 +684,7 @@ var pl = {debug: false};
         return false;
       } else {
         this.mask = windowTranslatedRect;
+        this.brush.mask = windowTranslatedRect;
         // this.mask = [
         //   windowTranslatedRect[0] + 200,
         //   windowTranslatedRect[1] + 200,
@@ -799,11 +854,7 @@ var pl = {debug: false};
     { constructor: pl.RaphaelPainter,
 
       init: function() {
-        this.paper = new Raphael(
-          0, 0,
-          window.innerWidth,
-          window.innerHeight
-        );
+        this.paper = this.brush.paper;
       },
 
       destroy: function() {
@@ -830,18 +881,8 @@ var pl = {debug: false};
         var oldPoint = this.point.slice(0);
         var adjOldPoint = this._translatePoint(this.point);
         this.move(length, direction);
-        if (rectanglesOverlap(this.mask, oldPoint) ||
-            rectanglesOverlap(this.mask, this.point)) {
-          var adjPoint = this._translatePoint(this.point);
-          var pathString = (
-            'M' + adjOldPoint[0] +
-              ' ' + adjOldPoint[1] +
-              'L' + adjPoint[0] +
-              ' ' + adjPoint[1]
-          );
-          this.paper.path(pathString)
-            .attr(style);
-        }
+        var points = [oldPoint, this.point];
+        this.brush.polyline(points, style);
       },
 
       rect: function(width, height, style) {
@@ -854,25 +895,16 @@ var pl = {debug: false};
               pointRB,
               pointRT,
               pointLT
-            ],
-            adjPoints = allPoints.map(this._translatePoint, this);
-
-        if (rectanglesOverlap(this.mask,
-                              pointsToRect.apply(null, allPoints)))
-        {
-          var pathString =
-              'M' + adjPoints[0][0] + ' ' + adjPoints[0][1] +
-              'L' + adjPoints[1][0] + ' ' + adjPoints[1][1] +
-              'L' + adjPoints[2][0] + ' ' + adjPoints[2][1] +
-              'L' + adjPoints[3][0] + ' ' + adjPoints[3][1] +
-              'Z';
-          this.paper.path(pathString)
-            .attr(style);
-        }
-        this.point = pointRT;
+            ];
+        this.brush.polyline(allPoints, style);
+        this.point = allPoints[2];
       },
 
       circle: function(radius, style) {
+        var adjRadius = radius * this.zoom;
+        this.brush.circle(this.point, adjRadius, style);
+        // console.log(this.brush._offset);
+        // return;
         var rect = [
           this.point[0] - radius * this.zoom,
           this.point[1] - radius * this.zoom,
@@ -898,6 +930,17 @@ var pl = {debug: false};
       }
     }
   );
+
+  // ---------------------------------------------------------------------------
+
+  pl.painterFactory = {
+    make: function() {
+      var painter = new pl.Painter();
+      painter.brush = new pl.RaphaelBrush();
+      painter.compass = new pl.Compass();
+      return painter;
+    }
+  };
 
   // ---------------------------------------------------------------------------
 
