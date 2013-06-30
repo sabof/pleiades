@@ -339,17 +339,14 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   pl.ColorThemeFactory = function() {
-    // this.themes = themes;
-    // this.themes = {nil: new pl.ColorTheme() };
-    this.make = function() {
-      // return this.themes.gray;
-      return new pl.ColorTheme();
-    };
-
+    this.make = this.make.bind(this, 'papyrus');
   };
 
   pl.ColorThemeFactory.prototype = {
     themes: {
+
+      // -----------------------------------------------------------------------
+
       papyrus: (function() {
 
         function randomColor() {
@@ -358,25 +355,39 @@ var pl = {debug: false};
         }
 
         return extend(new pl.ColorTheme(), {
+          // Colors
           outline: '#000000',
           background: '#C7C289',
-          largeCircles: '#FFFFFF',
+
           shadow: function() {
             return random('color');
           },
+
           gradHighlight: function() {
-            var oriColor = random(['#0000FF', '#000000', '#FF0000']);
+            var oriColor = random('color');
             return '45-' +
               pl.color.vary(oriColor, 100) + ':5-' +
               pl.color.vary(oriColor, 100) + ':95';
+          },
+
+          // Styles
+          largeCircle: function() {
+            return { 'stroke': "#FFFFFF" };
           }
+
         });
 
       } ()),
+
+      // -----------------------------------------------------------------------
+
       // matrix: extend(
       //   new pl.ColorTheme(),
       //   { shadow: '#00FF00'
       //   }),
+
+      // -----------------------------------------------------------------------
+
       gray: extend(new pl.ColorTheme(), {
         background: function() {
           return random(['#888888', '#000000']);
@@ -395,9 +406,9 @@ var pl = {debug: false};
       })
     },
 
-    make: function() {
+    make: function(themeName) {
       var proto = this.themes[
-        random(Object.keys(this.themes))
+        themeName || random(Object.keys(this.themes))
       ];
       var theme = Object.create(proto);
       theme.init();
