@@ -313,7 +313,8 @@ describe('sequenceFactory', function() {
 
 describe("CompositionFactory", function() {
   var colorThemeFactory = new pl.ColorThemeFactory(),
-      stampFactory = new pl.StampFactory(colorThemeFactory);
+      stampFactory = new pl.StampFactory(colorThemeFactory.make());
+  stampFactory.init();
   generator = new pl.CompositionFactory({
     colorThemeFactory: colorThemeFactory,
     stampFactory: stampFactory

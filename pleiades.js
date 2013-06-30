@@ -64,16 +64,6 @@ var pl = {debug: false};
             wheel.push(key);
           }});
       return random(wheel); }
-    if (min === 'color') {
-      return pl.color.vary(
-        random(
-          max ||
-            ['#0000FF',
-             // '#00FF00',
-             '#000000',
-             '#FF0000']),
-        50);
-    }
     if (min === 'direction') {
       return random(['forward', 'back', 'right', 'left']);
     }
@@ -183,6 +173,19 @@ var pl = {debug: false};
     return original;
   };
 
+  var wrap = function(oriFunc, wrapFunc) {
+    var resultFunc = function() {
+      var self = this;
+      return wrapFunc.call(self, oriFunc, arguments);
+    };
+    resultFunc.oriFunc = oriFunc;
+    return resultFunc;
+  };
+
+  var unWrap = function(wrapFunc) {
+    return wrapFunc.oriFunc;
+  };
+
   function makeLooper(array) {
     var activeArray;
     return function() {
@@ -266,30 +269,132 @@ var pl = {debug: false};
   pl.ColorTheme = function() {};
 
   pl.ColorTheme.prototype = {
+    init: function() {},
     constructor: pl.ColorTheme,
 
-    background: function() {},
-    highlight: function() {},
-    outline: function() {},
-    shadow: function() {}
+    // Colors
+
+    background: constantly('#ffff00'),
+    highlight: constantly('#ff0000'),
+    outline: constantly('#0000FF'),
+    shadow: constantly('#ff0000'),
+    gradient: function() {
+      var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
+      return '45-' +
+        pl.color.vary(oriColor, 100) + ':5-' +
+        pl.color.vary(oriColor, 100) + ':95';
+    },
+
+    // Styles
+
+    line: function() {
+      return {
+        'stroke': this.outline()
+      };
+    },
+
+    snake: function() {
+      return {
+        'stroke': this.outline()
+      };
+    },
+
+    largeCircle: function() {
+      return {
+        'stroke': this.outline()
+      };
+    },
+
+    gradStrip: function() {
+      return {
+        'stroke': this.outline(),
+        'fill': this.gradient()
+      };
+    },
+
+    highlightRect: function() {
+      return {
+        'stroke': this.outline(),
+        'fill': this.highlight()
+      };
+    }
+
   };
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorThemeFactory = function(themes) {
-    this.themes = themes;
+  pl.ColorThemeFactory = function() {
+    // this.themes = themes;
+    // this.themes = {nil: new pl.ColorTheme() };
+    this.make = function() {
+      // return this.themes.gray;
+      return new pl.ColorTheme();
+    };
+
   };
 
   pl.ColorThemeFactory.prototype = {
     themes: {
-      papyrus: extend(
-        new pl.ColorTheme(),
-        { outline: constantly('#000000'),
-          background: constantly('#C7C289')
-        })
+      papyrus: (function() {
+
+        function randomColor() {
+          return pl.color.vary(random(['#0000FF', '#000000', '#FF0000']),
+                               50);
+        }
+
+        return extend(new pl.ColorTheme(), {
+          outline: '#000000',
+          background: '#C7C289',
+          largeCircles: '#FFFFFF',
+          shadow: function() {
+            return random('color');
+          },
+          gradHighlight: function() {
+            var oriColor = random(['#0000FF', '#000000', '#FF0000']);
+            return '45-' +
+              pl.color.vary(oriColor, 100) + ':5-' +
+              pl.color.vary(oriColor, 100) + ':95';
+          }
+        });
+
+      } ()),
+      // matrix: extend(
+      //   new pl.ColorTheme(),
+      //   { shadow: '#00FF00'
+      //   }),
+      gray: extend(new pl.ColorTheme(), {
+        background: function() {
+          return random(['#888888', '#000000']);
+        },
+        outline: '#333333',
+        shadow: '#000000',
+        highlight: '#999999',
+        // largeCircles: constantly('#880000')
+        largeCircles: constantly('#FFFFFF'),
+        gradHighlight: function() {
+          var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
+          return '45-' +
+            pl.color.vary(oriColor, 100) + ':5-' +
+            pl.color.vary(oriColor, 100) + ':95';
+        }
+      })
     },
+
     make: function() {
-      return random(this.themes);
+      var proto = this.themes[
+        random(Object.keys(this.themes))
+      ];
+      var theme = Object.create(proto);
+      theme.init();
+      // Doesn't look at the chain
+      Object.keys(proto)
+        .concat(Object.keys(theme))
+        .forEach(function(key) {
+        if(typeof theme[key] === 'string') {
+          theme[key] = constantly(theme[key]);
+        }
+      });
+      return theme;
     }
   };
 
@@ -481,6 +586,7 @@ var pl = {debug: false};
           this.mask[3] ])
           .attr({'stroke-width': 4, 'stroke': 'blue'});
       }
+      document.documentElement.style.background = composition.background;
       this._walker(composition);
       if (pl.debug) {
         this._drawBoundingBox();
@@ -731,9 +837,7 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.StampFactory = function(colorTheme) {
-    this.colorTheme = colorTheme;
-  };
+  pl.StampFactory = function() {};
 
   pl.StampFactory.prototype = {
     reset: function() {
@@ -749,8 +853,7 @@ var pl = {debug: false};
             'circle',
             random(10, 300),
             { 'stroke-width': (dasharray === 'none') ? 1 : 2,
-              'stroke-dasharray' : dasharray,
-              'stroke': 'white'
+              'stroke-dasharray' : dasharray
             }
           ];
           circle.dontMeasure = true;
@@ -776,14 +879,28 @@ var pl = {debug: false};
             probability = 5;
           }
           for (var i = 0; i < probability; i++) {
-            wheel.push(self.recipes[recipeKey]);
+            wheel.push(recipeKey);
           }
         });
       wheelLength = wheel.length;
       this.make = function(option) {
-        var object = option ? this.recipes[option] :
-            wheel[random(wheelLength)];
-        var result = object.func();
+        option = option || wheel[random(wheelLength)];
+        var object = this.recipes[option],
+            result = object.func.call(this),
+            styles = [],
+            self = this;
+        if (this.colorTheme[option]) {
+          if (typeof result[0] === 'string') {
+            styles = [result[result.length - 1]];
+          } else if (typeof result[0] === 'number') {
+            result[1].forEach(function(elem) {
+              styles.push(elem[elem.length - 1]);
+            });
+          }
+          styles.forEach(function(style) {
+            extend(style, self.colorTheme[option]());
+          });
+        }
         self.lastUsed = object;
         return result;
       };
@@ -842,11 +959,10 @@ var pl = {debug: false};
             'line',
             random(5, 10),
             random('direction'),
-            extend(
-              { 'stroke-width': random(1, 5) },
-              random([{ 'stroke-dasharray' : '- ' },
-                      {}])) ];
-        }
+            extend({ 'stroke-width': random(1, 5) },
+                   random([{ 'stroke-dasharray' : '- ' },
+                           {}]))
+          ]; }
       },
 
       smallCircle: {
@@ -859,7 +975,8 @@ var pl = {debug: false};
             random(1, 2),
             { 'stroke-width': random(1, 3),
               'fill-opacity': random(),
-              'fill': random('color')
+              'fill': this.colorTheme.highlight(),
+              'stroke': this.colorTheme.outline()
             } ]; }
       },
 
@@ -873,8 +990,10 @@ var pl = {debug: false};
             random(-60, 60),
             { 'stroke-width': random(3),
               'stroke-opacity': random() * 0.5 + 0.1,
+              'stroke': this.colorTheme.outline(),
               'fill-opacity': random() / 10,
-              'fill': random('color') } ]; }
+              'fill': this.colorTheme.shadow()
+            } ]; }
       },
 
       gradStrip: {
@@ -886,12 +1005,10 @@ var pl = {debug: false};
           if (random(2)) {
             dimensions = rotateArray(dimensions);
           }
-          return ['rect', dimensions[0], dimensions[1],
-                  { 'stroke-width': 1,
-                    'fill': '45-' +
-                    pl.color.vary(oriColor, 100) + ':5-' +
-                    pl.color.vary(oriColor, 100) + ':95' }];
-        }
+          return ['rect',
+                  dimensions[0],
+                  dimensions[1],
+                  { 'stroke-width': 1 }]; }
       },
 
       highlightRect: {
@@ -901,14 +1018,13 @@ var pl = {debug: false};
           return ['rect', random(-10, 10), random(-10, 10),
                   { 'stroke-width': 2,
                     'stroke-opacity': 1 ,
-                    'fill-opacity': 1,
-                    'fill': random('color') }]; }
+                    'fill-opacity': 1 }]; }
       },
 
       snake: {
         probability: 50,
         func: function() {
-          var blank;
+          var blank, self = this;
           function makeMove(direction) {
             var type = blank ? 'line' : random(
               ['line', 'move']
@@ -918,39 +1034,15 @@ var pl = {debug: false};
               type,
               random(3, 15),
               direction,
-              {'stroke-width': random(1, 5)}];
+              { 'stroke-width': random(1, 5) }];
           }
 
           var up = makeMove('forward'),
               left = makeMove('left'),
               right = left.slice(0);
           right[2] = 'right';
-          return [
-            random(1, 4),
-            [left, up, right, up] ]; }
-      },
-
-      target: {
-        probability: 0,
-        func: function() {
-          var scale = 2;
-          return [
-            1,
-            [['circle', scale * 1, {'fill': 'black'}],
-             ['circle', scale * 2, {'stroke-width': random(2)}]
-            ]]; }
-      },
-
-      racket: {
-        probability: 0,
-        func: function() {
-          return [
-            1,
-            [['line', random(4, 9),
-              random('direction'),
-              {'stroke-width': random(1, 4)}],
-             ['circle', 3, {'stroke-width': random(2)}]
-            ]]; }
+          return [ random(1, 4),
+                   [left, up, right, up] ]; }
       }
     }
   };
@@ -994,16 +1086,20 @@ var pl = {debug: false};
     make: function() {
       var sequences = [],
           largeCircleLimit = 2,
-          oriLC = this.stampFactory.recipes.largeCircle.func,
-          allowAngleRotation = true || ! random(2);
-      this.stampFactory.recipes.largeCircle.func = function () {
-        if (largeCircleLimit) {
-          largeCircleLimit--;
-          return oriLC.call(this);
-        } else {
-          return [0, []];
-        }
-      };
+          allowAngleRotation = true || ! random(2),
+          colorTheme = this.colorThemeFactory.make();
+      this.stampFactory.reset(); // creates a new largeCircle.func
+      var oriLC = this.stampFactory.recipes.largeCircle.func,
+          newLC = function() {
+            if (largeCircleLimit) {
+              largeCircleLimit--;
+              return oriLC.call(this);
+            } else {
+              return [0, []];
+            }
+          };
+      this.stampFactory.recipes.largeCircle.func = newLC;
+      this.stampFactory.colorTheme = colorTheme;
       for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
 
@@ -1012,8 +1108,6 @@ var pl = {debug: false};
         } else {
           this.stampFactory.recipes.largeCircle.probability = 0;
         }
-        this.stampFactory.reset();
-
         for (var j = 0, jL = this.sequenceLength; j < jL; j++) {
           currentSequence.unshift(this.stampFactory.make());
         }
@@ -1023,9 +1117,9 @@ var pl = {debug: false};
                                    0,
                                    this._makeZoomer(sequences[0]));
           } else {
-            currentSequence.splice(
-              random(currentSequence.length),
-              0, [ 2 + random(2) * 2, sequences[0] ]);
+            currentSequence.splice(random(currentSequence.length),
+                                   0,
+                                   [ 2 + random(2) * 2, sequences[0] ]);
           }
         }
         if (allowAngleRotation) {
@@ -1035,14 +1129,17 @@ var pl = {debug: false};
           currentSequence.splice(position,
                                  0,
                                  ['rotateAngle', rotationAngle]);
-          currentSequence.splice(random(position, currentSequence.length + 1),
+          currentSequence.splice(random(position + 1, currentSequence.length),
                                  0,
                                  ['rotateAngle', -rotationAngle]);
         }
         sequences.unshift(currentSequence);
       }
       this.stampFactory.recipes.largeCircle.func = oriLC;
-      return [[4, sequences[0]]];
+      return extend([],
+                    {0:[4, sequences[0]],
+                     length: 1,
+                     background: colorTheme.background()});
     }
   };
 

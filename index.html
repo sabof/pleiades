@@ -68,11 +68,12 @@ function init(type) {
   initUI();
   window.tmp = SeedRandom.getState();
   var colorThemeFactory = new pl.ColorThemeFactory(),
-      stampFactory = new pl.StampFactory(colorThemeFactory);
+      stampFactory = new pl.StampFactory();
+  stampFactory.init();
   previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
     painter: new pl.RaphaelPainter(),
-    loopInterval: 0.5,
+    loopInterval: 5,
     // beforeStepHook: function() {
     // var ticketInput = document.getElementById('ticket');
     // this.ticket = pl.util.makeTicket();
