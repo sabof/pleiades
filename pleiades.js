@@ -3,6 +3,51 @@
 // Project hosted at http://github.com/sabof/pleiades
 // Version 0.1
 
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame ||
+    function( callback ){
+      window.setTimeout(callback, 1000 / 60);
+    };
+})();
+
+(function() {
+  var hidden = "hidden";
+
+  function onchange (evt) {
+    var v = 'visible', h = 'hidden',
+        evtMap = {
+          focus:v, focusin:v, pageshow:v, blur:h, focusout:h, pagehide:h
+        };
+
+    evt = evt || window.event;
+    if (evt.type in evtMap)
+      document.body.className = evtMap[evt.type];
+    else
+      document.body.className = this[hidden] ? "hidden" : "visible";
+  }
+
+  // Standards:
+  if (hidden in document)
+    document.addEventListener("visibilitychange", onchange);
+  else if ((hidden = "mozHidden") in document)
+    document.addEventListener("mozvisibilitychange", onchange);
+  else if ((hidden = "webkitHidden") in document)
+    document.addEventListener("webkitvisibilitychange", onchange);
+  else if ((hidden = "msHidden") in document)
+    document.addEventListener("msvisibilitychange", onchange);
+  // IE 9 and lower:
+  else if ('onfocusin' in document)
+    document.onfocusin = document.onfocusout = onchange;
+  // All others:
+  else
+    window.onpageshow = window.onpagehide = window.onfocus = window.onblur = onchange;
+
+})();
+
+// -----------------------------------------------------------------------------
+
 var pl = {debug: false};
 
 (function () {
@@ -264,9 +309,8 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.Painter = function(painter) {
+  pl.Painter = function() {
     this.compass = new pl.Compass();
-    this.painter = painter;
     this.point = [0, 0];
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
@@ -402,7 +446,7 @@ var pl = {debug: false};
       if (pl.debug) {
         visible.forEach(function(rect) {
           var isPoint = (rect.length === 2) ? 1 : 0;
-          brush.paper.rect(
+          self.paper.rect(
             rect[0] + self._offset[0] - isPoint,
             rect[1] + self._offset[1] - isPoint,
             rect[2] || 2,
@@ -693,8 +737,27 @@ var pl = {debug: false};
 
   pl.StampFactory.prototype = {
     reset: function() {
-      this.recipes.largeCircle.iterator =
-        makeLooper(rotateArray(['.', 'none', '--', 'none'], random(4)));
+      var iterator = makeLooper(rotateArray(['.', 'none', '--', 'none'],
+                                            random(4)));
+
+      this.recipes.largeCircle = {
+        probability: 20,
+        maxLength: 1,
+        func: function() {
+          var dasharray = iterator();
+          var circle = [
+            'circle',
+            random(10, 300),
+            { 'stroke-width': (dasharray === 'none') ? 1 : 2,
+              'stroke-dasharray' : dasharray,
+              'stroke': 'white'
+            }
+          ];
+          circle.dontMeasure = true;
+          return circle;
+        }
+      };
+
       this.makeMake();
     },
 
@@ -721,6 +784,7 @@ var pl = {debug: false};
         var object = option ? this.recipes[option] :
             wheel[random(wheelLength)];
         var result = object.func();
+        self.lastUsed = object;
         return result;
       };
     },
@@ -782,25 +846,6 @@ var pl = {debug: false};
               { 'stroke-width': random(1, 5) },
               random([{ 'stroke-dasharray' : '- ' },
                       {}])) ];
-        }
-      },
-
-      largeCircle: {
-        probability: 20,
-        maxLength: 1,
-        iterator: makeLooper(rotateArray(['.', 'none', '--', 'none'],
-                                         random(4))),
-        func: function() {
-          var dasharray = this.iterator();
-          var circle = [
-            'circle',
-            random(10, 300),
-            { 'stroke-width': (dasharray === 'none') ? 1 : 2,
-              'stroke-dasharray' : dasharray,
-              'stroke': 'white'
-            } ];
-          circle.dontMeasure = true;
-          return circle;
         }
       },
 
@@ -974,9 +1019,9 @@ var pl = {debug: false};
         }
         if (sequences.length) {
           if (random(2)) {
-            currentSequence.splice(
-              random(currentSequence.length),
-              0, this._makeZoomer(sequences[0]));
+            currentSequence.splice(random(currentSequence.length),
+                                   0,
+                                   this._makeZoomer(sequences[0]));
           } else {
             currentSequence.splice(
               random(currentSequence.length),
@@ -1030,19 +1075,18 @@ var pl = {debug: false};
         this.ticket = pl.util.makeTicket();
       }
       SeedRandom.seed(this.ticket);
+
       this.composition = this.compositionFactory.make();
-      this.painter.drawComposition(this.composition);
-      // previewer.step('1168') 24EF
+      var result = this.painter.drawComposition(this.composition);
       this.afterStepHook();
+      return result;
     },
 
     loop: function() {
       if (document.body.className !== 'hidden' && ! this.paused) {
         while (true) {
-          try {
-            this.step();
-          } catch (error) {
-            console.log(error);
+          if ( !this.step() ) {
+            // console.log('skipped ' + this.ticket);
             continue;
           }
           break;
@@ -1059,18 +1103,15 @@ var pl = {debug: false};
 
     start: function(type) {
       switch (type) {
-      case 1:
+      case 'step':
         this.init();
         this.step();
         break;
 
-      case 2:
+      case 'loop':
         this.init();
         this.stopped = false;
         this.loop();
-        break;
-
-      case 0:
         break;
 
       default:
@@ -1079,48 +1120,3 @@ var pl = {debug: false};
     }
   };
 }());
-
-// -----------------------------------------------------------------------------
-
-window.requestAnimFrame = (function(){
-  return  window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame ||
-    function( callback ){
-      window.setTimeout(callback, 1000 / 60);
-    };
-})();
-
-(function() {
-  var hidden = "hidden";
-
-  function onchange (evt) {
-    var v = 'visible', h = 'hidden',
-        evtMap = {
-          focus:v, focusin:v, pageshow:v, blur:h, focusout:h, pagehide:h
-        };
-
-    evt = evt || window.event;
-    if (evt.type in evtMap)
-      document.body.className = evtMap[evt.type];
-    else
-      document.body.className = this[hidden] ? "hidden" : "visible";
-  }
-
-  // Standards:
-  if (hidden in document)
-    document.addEventListener("visibilitychange", onchange);
-  else if ((hidden = "mozHidden") in document)
-    document.addEventListener("mozvisibilitychange", onchange);
-  else if ((hidden = "webkitHidden") in document)
-    document.addEventListener("webkitvisibilitychange", onchange);
-  else if ((hidden = "msHidden") in document)
-    document.addEventListener("msvisibilitychange", onchange);
-  // IE 9 and lower:
-  else if ('onfocusin' in document)
-    document.onfocusin = document.onfocusout = onchange;
-  // All others:
-  else
-    window.onpageshow = window.onpagehide = window.onfocus = window.onblur = onchange;
-
-})();

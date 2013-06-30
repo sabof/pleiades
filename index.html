@@ -64,13 +64,15 @@ document.getElementById('ticket')
 }
 
 var previewer;
-function init() {
+function init(type) {
   initUI();
+  window.tmp = SeedRandom.getState();
   var colorThemeFactory = new pl.ColorThemeFactory(),
       stampFactory = new pl.StampFactory(colorThemeFactory);
   previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
     painter: new pl.RaphaelPainter(),
+    loopInterval: 0.5,
     // beforeStepHook: function() {
     // var ticketInput = document.getElementById('ticket');
     // this.ticket = pl.util.makeTicket();
@@ -85,17 +87,10 @@ function init() {
       colorThemeFactory: colorThemeFactory
     })
   });
-  previewer.start(2);
+  previewer.start(type === undefined ? 'loop' : type);
 }
 
-init();
-
-// SeedRandom.seed('4D30'); // invisible
-// SeedRandom.seed('1421'); // small
-// SeedRandom.seed('189E');
-
-
-// test_angleRotator()
+init('loop');
 
 </script>
     </body>

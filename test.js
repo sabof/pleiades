@@ -118,6 +118,24 @@ function test_centerer() {
   brush.drawComposition(composition);
 }
 
+function fault_1316() {
+  SeedRandom.setState("B7PKeDvts66hCVEMaMzEA1JeWF1/c46d4t7u2G/h+FDR45i1k0F9w8+a3As2Z/1APa1tzkyJlqm0qJGLNQ8W4KYa1dbrSke8769NLzPBdfOKGKsjCFt5Od1Ztp+cdPWbQwUrT2yqHTCxzW77IYAn2oImMnJcEpCI5tskG+gAg0bC5cWFj0gEESmiVNct9GC7VWmsuQH+TnAfLqe4pV/Q9weSxiBhnvZ+3yX8+VNXfMhWKD8ThmYcy780wNmEl5W3RaONew16QsfJpGXk6bAsKkkxArJkcYfyIgZjFw5i/wp30xmU7IHSFVq+uqB2PvFqa+rn1Po4SzrwFJm9NxAePIxE");
+  var generator = (function () {
+    var colorThemeFactory = new pl.ColorThemeFactory(),
+        stampFactory = new pl.StampFactory(colorThemeFactory);
+
+    return new pl.CompositionFactory({
+      depth: 4,
+      sequenceLength: 15,
+      stampFactory: stampFactory,
+      colorThemeFactory: colorThemeFactory
+    });
+  }());
+  SeedRandom.seed('1316');
+  return generator.make();
+}
+
+
 plt.isStampValid = function(pattern) {
   if (typeof pattern === 'function') {
     return true;
@@ -279,8 +297,8 @@ describe("Sequence validator", function() {
 // -----------------------------------------------------------------------------
 
 describe('sequenceFactory', function() {
-  var factory = pl.stampFactory,
-      recipes = pl.stampFactory.getOptions(),
+  var factory = new pl.StampFactory(),
+      recipes = factory.getOptions(),
       dishes = recipes.map(function(name) {
         return factory.make(name);
       });
@@ -294,11 +312,16 @@ describe('sequenceFactory', function() {
 // -----------------------------------------------------------------------------
 
 describe("CompositionFactory", function() {
-  generator = new pl.CompositionFactory();
+  var colorThemeFactory = new pl.ColorThemeFactory(),
+      stampFactory = new pl.StampFactory(colorThemeFactory);
+  generator = new pl.CompositionFactory({
+    colorThemeFactory: colorThemeFactory,
+    stampFactory: stampFactory
+  });
   generator.sequenceLength = 4;
   generator.depth = 5;
   composition = generator.make();
-  it("should create valid compositions")
+  it("should create valid compositions 1")
     .expect(plt.isSequenceValid(composition))
     .toBeTruthy();
 });
@@ -364,6 +387,13 @@ describe("Compass", function() {
       .expect(outerRect[3])
       .toEqual(20);
   });
+
+  // ---------------------------------------------------------------------------
+
+  compass.measure(fault_1316());
+  it("shouldn't throw, or return false2")
+    .expect(compass._objectRects)
+    .toBeTruthy();
 });
 
 // -----------------------------------------------------------------------------
@@ -372,10 +402,12 @@ describe("RaphaelPainter", function() {
   brush = new pl.RaphaelPainter();
   brush.paper = new MockPaper();
   // jasmine.log('log test');
-  it("shouldn't throw", function() {
+  it("shouldn't throw, or return false1", function() {
     expect(function () {
       try {
-        brush.drawComposition(composition);
+        if (! brush.drawComposition(composition)) {
+          throw new Error('Was false');
+        }
       } catch (error) {
         return false;
       }
