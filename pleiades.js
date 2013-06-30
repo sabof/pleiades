@@ -1089,16 +1089,17 @@ var pl = {debug: false};
           allowAngleRotation = true || ! random(2),
           colorTheme = this.colorThemeFactory.make();
       this.stampFactory.reset(); // creates a new largeCircle.func
-      var oriLC = this.stampFactory.recipes.largeCircle.func,
-          newLC = function() {
-            if (largeCircleLimit) {
-              largeCircleLimit--;
-              return oriLC.call(this);
-            } else {
-              return [0, []];
-            }
-          };
-      this.stampFactory.recipes.largeCircle.func = newLC;
+      this.stampFactory.recipes.largeCircle.func = wrap(
+        this.stampFactory.recipes.largeCircle.func,
+        function(oriFunc) {
+          if (largeCircleLimit) {
+            largeCircleLimit--;
+            return oriFunc.call(this);
+          } else {
+            return [0, []];
+          }
+        }
+      );
       this.stampFactory.colorTheme = colorTheme;
       for (var i = this.depth - 1; i >= 0; i--) {
         var currentSequence = [];
@@ -1135,7 +1136,8 @@ var pl = {debug: false};
         }
         sequences.unshift(currentSequence);
       }
-      this.stampFactory.recipes.largeCircle.func = oriLC;
+      this.stampFactory.recipes.largeCircle.func =
+        unWrap(this.stampFactory.recipes.largeCircle.func);
       return extend([],
                     {0:[4, sequences[0]],
                      length: 1,
