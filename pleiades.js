@@ -167,9 +167,10 @@ var pl = {debug: false};
     Array.prototype.slice
       .call(arguments, 1)
       .forEach(function(mixin) {
-        Object.keys(mixin).forEach(function(key) {
-          original[key] = mixin[key];
-        }); });
+        if (mixin && typeof mixin === 'object') {
+          Object.keys(mixin).forEach(function(key) {
+            original[key] = mixin[key];
+          }); }});
     return original;
   };
 
@@ -474,9 +475,10 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.RaphaelBrush = function() {
+  pl.RaphaelBrush = function(properties) {
     this.mask = [0, 0, 0, 0];
     this.paper = null;
+    extend(this, properties);
   };
 
   pl.RaphaelBrush.prototype = extend(
@@ -499,7 +501,6 @@ var pl = {debug: false};
               pathString = 'M'.concat(adjPoints.map(function(pair) {
                 return pair[0] + ' ' + pair[1];
               }).join('L'), 'Z');
-          // console.log(pathString);
           this.paper.path(pathString)
             .attr(attributes);
         }
@@ -512,13 +513,9 @@ var pl = {debug: false};
           radius * 2,
           radius * 2
         ];
-        // console.log(rect);
         // The mask is unadjusted
         if (rectanglesOverlap(rect, this.mask)) {
-          // console.log(this.mask);
-
           var adjPoint = this._translatePoint(point);
-          console.log(adjPoint);
           this.paper.circle(adjPoint[0], adjPoint[1], radius)
             .attr(attributes);
         }
@@ -527,12 +524,58 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.BrushCompass = function() {
+  pl.CanvasBrush = function() {
+  };
+
+  pl.CanvasBrush.prototype = extend(
+    new pl.Brush(), {
+      constructor: pl.CanvasBrush,
+
+      init: function() {
+        this.paper = new Raphael(
+          0, 0,
+          window.innerWidth,
+          window.innerHeight
+        );
+      },
+
+      polyline: function(points, attributes) {
+        if (rectanglesOverlap(this.mask,
+                              pointsToRect.apply(null, points)))
+        {
+          var adjPoints = points.map(this._translatePoint, this),
+              pathString = 'M'.concat(adjPoints.map(function(pair) {
+                return pair[0] + ' ' + pair[1];
+              }).join('L'), 'Z');
+          this.paper.path(pathString)
+            .attr(attributes);
+        }
+      },
+
+      circle: function(point, radius, attributes) {
+        var rect = [
+          point[0] - radius,
+          point[1] - radius,
+          radius * 2,
+          radius * 2
+        ];
+        // The mask is unadjusted
+        if (rectanglesOverlap(rect, this.mask)) {
+          var adjPoint = this._translatePoint(point);
+          this.paper.circle(adjPoint[0], adjPoint[1], radius)
+            .attr(attributes);
+        }
+      }
+    });
+
+  // ---------------------------------------------------------------------------
+
+  pl.Compass = function() {
     this._objectRects = [];
     this._outerBoundaries = undefined;
   };
 
-  pl.BrushCompass.prototype = extend(
+  pl.Compass.prototype = extend(
     new pl.Brush(), {
       reset: function() {
         this._outerBoundaries = undefined;
@@ -569,13 +612,10 @@ var pl = {debug: false};
 
         this._objectRects.push(rect);
 
-        adjustOuterBoundaries(
-          [rect[0],
-           rect[1]]);
+        adjustOuterBoundaries([rect[0], rect[1]]);
         if (rect.length === 4) {
-          adjustOuterBoundaries(
-            [rect[0] + rect[2],
-             rect[1] + rect[3]]);
+          adjustOuterBoundaries([rect[0] + rect[2],
+                                 rect[1] + rect[3]]);
         }
       },
 
@@ -584,16 +624,12 @@ var pl = {debug: false};
           throw new Error('Boundaries not calculated');
         }
         var ob = this._outerBoundaries,
-            points = [
-              this._outerBoundaries.slice(0, 2),
-              this._outerBoundaries.slice(2, 4)
-            ];
+            points = [this._outerBoundaries.slice(0, 2),
+                      this._outerBoundaries.slice(2, 4)];
         if (adjusted) {
           points = points.map(function(point) {
-            return [
-              point[0] + this._offset[0],
-              point[1] + this._offset[1]
-            ];
+            return [point[0] + this._offset[0],
+                    point[1] + this._offset[1]];
           },
                               this);
         }
@@ -604,7 +640,8 @@ var pl = {debug: false};
       },
 
       polyline: function(points) {
-        this.trackIt(pointsToRect(points));
+        var rectPoints = pointsToRect.apply(null, points);
+        this.trackIt(rectPoints);
       },
 
       circle: function(point, radius) {
@@ -620,7 +657,7 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   pl.Painter = function(properties) {
-    this.compass = new pl.Compass();
+    // this.compass = new pl.Compass();
     this.point = [0, 0];
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
@@ -727,7 +764,10 @@ var pl = {debug: false};
               self._walker(stamp[1]);
             }
           } else {
+            if ( ! (this.brush instanceof pl.Compass &&
+                   stamp))
             self[stamp[0]].apply(self, stamp.slice(1));
+
           }});
     },
 
@@ -739,7 +779,7 @@ var pl = {debug: false};
           imageCenter;
 
       this.reset();
-      this.compass.measure(composition);
+      this.measure(composition);
 
       var outerRect = this.compass.getOuterRect(true);
       imageCenter = [
@@ -816,133 +856,6 @@ var pl = {debug: false};
     init: function() {},
     destroy: function() {}
   };
-
-  // ---------------------------------------------------------------------------
-
-  pl.Compass = function() {
-    this._objectRects = [];
-    this._outerBoundaries = undefined;
-  };
-
-  pl.Compass.prototype = extend(
-    new pl.Painter(), {
-      constructor: pl.Compass,
-      reset: function() {
-        this.point = [0, 0];
-        this._outerBoundaries = undefined;
-        this._objectRects = [];
-      },
-      trackIt: function(rect) {
-        var self = this;
-        function adjustOuterBoundaries(point) {
-          var x = point[0],
-              y = point[1];
-
-          if ( ! self._outerBoundaries) {
-            self._outerBoundaries = [x, y, x, y];
-          } else {
-            self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
-            self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
-            self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
-            self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
-          }
-        }
-
-        if (rect.length < 2) {
-          throw new Error(
-            'Wrong number of members: ' +
-              rect.length);
-        }
-        if ( ! rect.every(function(num) {
-          return typeof num === 'number' && ! isNaN(num); }))
-        { throw new Error(
-          'Some members are not numbers: ' +
-            JSON.stringify(rect));
-        }
-
-        this._objectRects.push(rect);
-
-        adjustOuterBoundaries(
-          [rect[0],
-           rect[1]]);
-        if (rect.length === 4) {
-          adjustOuterBoundaries(
-            [rect[0] + rect[2],
-             rect[1] + rect[3]]);
-        }
-      },
-      // [left, top, width, height] or [left, top]
-
-      circle: function(radius) {
-        var rect = [
-          this.point[0] - radius * this.zoom,
-          this.point[1] - radius * this.zoom,
-          radius * this.zoom * 2,
-          radius * this.zoom * 2
-        ];
-        this.trackIt(rect);
-      },
-
-      rect: function(width, height, style) {
-        var pointLB = this.point.slice(0),
-            pointRB = this.directionTranslate(pointLB, width, 'right'),
-            pointLT = this.directionTranslate(pointLB, height, 'forward'),
-            pointRT = this.directionTranslate(pointRB, height, 'forward'),
-            allPoints = [ pointLB, pointRB, pointRT, pointLT ];
-        this.trackIt(pointsToRect.apply(null, allPoints));
-        this.point = pointRT;
-      },
-
-      line: function(length, direction) {
-        this.trackIt(this.point);
-        this.move(length, direction);
-        this.trackIt(this.point);
-      },
-
-      _walker: function(pattern) {
-        var self = this;
-        pattern.forEach(
-          function(stamp) {
-            if (typeof stamp === 'function') {
-              stamp.call(self);
-            } else if (typeof stamp[0] === 'number') {
-              for (var i = 0; i < stamp[0]; i++) {
-                self._walker(stamp[1]);
-              }
-            } else if (! stamp.dontMeasure) {
-              self[stamp[0]].apply(self, stamp.slice(1));
-            }});
-      },
-
-      measure: function(composition) {
-        this.reset();
-        this._walker(composition);
-      },
-
-      getOuterRect: function(adjusted) {
-        if ( ! this._outerBoundaries) {
-          throw new Error('Boundaries not calculated');
-        }
-        var ob = this._outerBoundaries,
-            points = [
-              this._outerBoundaries.slice(0, 2),
-              this._outerBoundaries.slice(2, 4)
-            ];
-        if (adjusted) {
-          points = points.map(function(point) {
-            return [
-              point[0] + this._offset[0],
-              point[1] + this._offset[1]
-            ];
-          },
-                              this);
-        }
-        return points[0].concat(
-          [points[1][0] - points[0][0],
-           points[1][1] - points[0][1]]
-        );
-      }
-    });
 
   // ---------------------------------------------------------------------------
 

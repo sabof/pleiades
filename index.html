@@ -69,13 +69,15 @@ function init(type) {
   window.tmp = SeedRandom.getState();
   var colorThemeFactory = new pl.ColorThemeFactory(),
       stampFactory = new pl.StampFactory(),
-      brush = new pl.RaphaelBrush();
+      brush = new pl.RaphaelBrush(),
+      compass = new pl.Compass();
   brush.init();
   stampFactory.init();
   previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
     painter: new pl.RaphaelPainter({zoom: 4,
-                                    brush: brush}),
+                                    brush: brush,
+                                    compass: compass}),
     loopInterval: 5,
     // beforeStepHook: function() {
     // var ticketInput = document.getElementById('ticket');
