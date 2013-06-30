@@ -317,8 +317,23 @@ var pl = {debug: false};
         'stroke': this.outline(),
         'fill': this.highlight()
       };
-    }
+    },
 
+    smallCircle: function() {
+      return {
+        'stroke': this.outline(),
+        'fill': this.highlight()
+      };
+    },
+
+    ambientRect: function() {
+      return {
+        'stroke-opacity': random() * 0.5 + 0.1,
+        'stroke': this.outline(),
+        'fill-opacity': random() / 10,
+        'fill': this.shadow()
+      };
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -988,12 +1003,7 @@ var pl = {debug: false};
             'rect',
             random(-60, 60),
             random(-60, 60),
-            { 'stroke-width': random(3),
-              'stroke-opacity': random() * 0.5 + 0.1,
-              'stroke': this.colorTheme.outline(),
-              'fill-opacity': random() / 10,
-              'fill': this.colorTheme.shadow()
-            } ]; }
+            { 'stroke-width': random(3) } ]; }
       },
 
       gradStrip: {
