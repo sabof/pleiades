@@ -131,10 +131,10 @@ var pl = {debug: false};
                   Math.max(a[1], b[1])];
         });
     return [ min[0],
-      min[1],
-      max[0] - min[0],
-      max[1] - min[1]
-    ];
+             min[1],
+             max[0] - min[0],
+             max[1] - min[1]
+           ];
   };
 
   var rangesOverlap = function(rangeA, rangeB) {
@@ -356,10 +356,10 @@ var pl = {debug: false};
       Object.keys(proto)
         .concat(Object.keys(theme))
         .forEach(function(key) {
-        if(typeof theme[key] === 'string') {
-          theme[key] = constantly(theme[key]);
-        }
-      });
+          if(typeof theme[key] === 'string') {
+            theme[key] = constantly(theme[key]);
+          }
+        });
       return theme;
     },
 
@@ -370,33 +370,34 @@ var pl = {debug: false};
 
         function randomColor() {
           return pl.color.vary(random(['#0000FF',
-                                        '#CC0000',
-                                        // '#008800',
-                                        '#000000']),
+                                       '#CC0000',
+                                       // '#008800',
+                                       '#000000']),
                                150);
         }
 
-        return extend(new pl.ColorTheme(), {
-          // Colors
-          background: '#C7C289',
-          outline: '#000000',
-          shadow: function() {
-            return randomColor();
-          },
-          highlight: randomColor,
-          gradient: function() {
-            var oriColor = randomColor();
-            return '45-' +
-              pl.color.vary(oriColor, 50) + ':5-' +
-              pl.color.vary(oriColor, 50) + ':95';
-          },
+        return extend(
+          new pl.ColorTheme(), {
+            // Colors
+            background: '#C7C289',
+            outline: '#000000',
+            shadow: function() {
+              return randomColor();
+            },
+            highlight: randomColor,
+            gradient: function() {
+              var oriColor = randomColor();
+              return '45-' +
+                pl.color.vary(oriColor, 50) + ':5-' +
+                pl.color.vary(oriColor, 50) + ':95';
+            },
 
-          // Styles
-          largeCircle: constantly(
-            { 'stroke': "#FFFFFF" }
-          )
+            // Styles
+            largeCircle: constantly(
+              { 'stroke': "#FFFFFF" }
+            )
 
-        });
+          });
 
       } ()),
 
@@ -409,47 +410,49 @@ var pl = {debug: false};
 
       // -----------------------------------------------------------------------
 
-      blackNeon: extend(new pl.ColorTheme(), {
-        background: '#14090C',
-        outline: '#332727',
-        shadow: '#3A4344',
-        highlight: '#41473C',
-        largeCircle: constantly({ 'stroke': "#E7E2C8",
-                                  'stroke-opacity': 0.5}),
-        highlightRect: function() {
-          return {
-            'stroke': this.outline(),
-            'fill': this.highlight(),
-            'fill-opacity': random() * 0.4 + 0.1
-          };
-        },
+      blackNeon: extend(
+        new pl.ColorTheme(), {
+          background: '#14090C',
+          outline: '#332727',
+          shadow: '#3A4344',
+          highlight: '#41473C',
+          largeCircle: constantly({ 'stroke': "#E7E2C8",
+                                    'stroke-opacity': 0.5}),
+          highlightRect: function() {
+            return {
+              'stroke': this.outline(),
+              'fill': this.highlight(),
+              'fill-opacity': random() * 0.4 + 0.1
+            };
+          },
 
-        gradient: function() {
-          var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
-          return '45-' +
-            pl.color.vary(oriColor, 100) + ':5-' +
-            pl.color.vary(oriColor, 100) + ':95';
-        }
+          gradient: function() {
+            var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
+            return '45-' +
+              pl.color.vary(oriColor, 100) + ':5-' +
+              pl.color.vary(oriColor, 100) + ':95';
+          }
 
-        // smallCircle: function() {
-        //   return {
-        //     'stroke': this.outline(),
-        //     'fill': this.gradient()
-        //   };
-        // }
-      }),
+          // smallCircle: function() {
+          //   return {
+          //     'stroke': this.outline(),
+          //     'fill': this.gradient()
+          //   };
+          // }
+        }),
 
       // -----------------------------------------------------------------------
 
-      bluePrint: extend(new pl.ColorTheme(), {
-        background: '#003355',
-        outline: '#E7E2C8',
-        shadow: '#003355',
-        highlight: '#003355',
-        largeCircle: constantly({ 'stroke': "#E7E2C8",
-                                  'stroke-opacity': 0.5}),
+      bluePrint: extend(
+        new pl.ColorTheme(), {
+          background: '#003355',
+          outline: '#E7E2C8',
+          shadow: '#003355',
+          highlight: '#003355',
+          largeCircle: constantly({ 'stroke': "#E7E2C8",
+                                    'stroke-opacity': 0.5}),
 
-        gradient: constantly('#003355')
+          gradient: constantly('#003355')
 
         })
     }
@@ -477,8 +480,8 @@ var pl = {debug: false};
   };
 
   pl.RaphaelBrush.prototype = extend(
-    new pl.Brush(),
-    { constructor: pl.RaphaelBrush,
+    new pl.Brush(), {
+      constructor: pl.RaphaelBrush,
 
       init: function() {
         this.paper = new Raphael(
@@ -657,8 +660,8 @@ var pl = {debug: false};
                     point[0] - this._offset[0],
                     point[1] - this._offset[1]
                   ];
-              },
-              this));
+                },
+                this));
       var visible = this.compass._objectRects.filter(function(rect) {
         return rectanglesOverlap(rect, windowTranslatedRect);
       });
@@ -730,8 +733,8 @@ var pl = {debug: false};
   };
 
   pl.Compass.prototype = extend(
-    new pl.Painter(),
-    { constructor: pl.Compass,
+    new pl.Painter(), {
+      constructor: pl.Compass,
       reset: function() {
         this.point = [0, 0];
         this._outerBoundaries = undefined;
@@ -859,8 +862,8 @@ var pl = {debug: false};
   };
 
   pl.RaphaelPainter.prototype = extend(
-    new pl.Painter(),
-    { constructor: pl.RaphaelPainter,
+    new pl.Painter(), {
+      constructor: pl.RaphaelPainter,
 
       init: function() {
         this.paper = this.brush.paper;
