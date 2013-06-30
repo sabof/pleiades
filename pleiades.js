@@ -496,7 +496,7 @@ var pl = {debug: false};
               pathString = 'M'.concat(adjPoints.map(function(pair) {
                 return pair[0] + ' ' + pair[1];
               }).join('L'), 'Z');
-          console.log(pathString);
+          // console.log(pathString);
           this.paper.path(pathString)
             .attr(attributes);
         }
@@ -509,14 +509,14 @@ var pl = {debug: false};
           radius * 2,
           radius * 2
         ];
-        console.log(rect);
+        // console.log(rect);
         // The mask is unadjusted
         if (rectanglesOverlap(rect, this.mask)) {
-          console.log(this.mask);
+          // console.log(this.mask);
 
           var adjPoint = this._translatePoint(point);
           console.log(adjPoint);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
+          this.paper.circle(adjPoint[0], adjPoint[1], radius)
             .attr(attributes);
         }
       }
@@ -715,6 +715,15 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
+  pl.BrushCompass = function() {};
+
+  pl.BrushCompass.prototype = extend(
+    new pl.Brush(), {
+
+    });
+
+  // ---------------------------------------------------------------------------
+
   pl.Compass = function() {
     this._objectRects = [];
     this._outerBoundaries = undefined;
@@ -862,12 +871,6 @@ var pl = {debug: false};
         canvas.parentNode.removeChild(canvas);
       },
 
-      _translatePoint: function(point) {
-        var x = Math.round(this._offset[0] + point[0]),
-            y = Math.round(this._offset[1] + point[1]);
-        return [x, y];
-      },
-
       reset: function() {
         this.paper.clear();
         this.paper.setSize(
@@ -879,7 +882,6 @@ var pl = {debug: false};
 
       line: function(length, direction, style) {
         var oldPoint = this.point.slice(0);
-        var adjOldPoint = this._translatePoint(this.point);
         this.move(length, direction);
         var points = [oldPoint, this.point];
         this.brush.polyline(points, style);
@@ -903,20 +905,6 @@ var pl = {debug: false};
       circle: function(radius, style) {
         var adjRadius = radius * this.zoom;
         this.brush.circle(this.point, adjRadius, style);
-        // console.log(this.brush._offset);
-        // return;
-        var rect = [
-          this.point[0] - radius * this.zoom,
-          this.point[1] - radius * this.zoom,
-          radius * 2 * this.zoom,
-          radius * 2 * this.zoom
-        ];
-        // The mask is unadjusted
-        if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this._translatePoint(this.point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius * this.zoom)
-            .attr(style);
-        }
       },
 
       _drawBoundingBox: function() {
