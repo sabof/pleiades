@@ -201,6 +201,8 @@ var pl = {debug: false};
     return function() { return value; };
   }
 
+  function ignore() {}
+
   pl.util = {
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
@@ -404,13 +406,6 @@ var pl = {debug: false};
 
       // -----------------------------------------------------------------------
 
-      // matrix: extend(
-      //   new pl.ColorTheme(),
-      //   { shadow: '#00FF00'
-      //   }),
-
-      // -----------------------------------------------------------------------
-
       blackNeon: extend(
         new pl.ColorTheme(), {
           background: '#14090C',
@@ -433,13 +428,6 @@ var pl = {debug: false};
               pl.color.vary(oriColor, 100) + ':5-' +
               pl.color.vary(oriColor, 100) + ':95';
           }
-
-          // smallCircle: function() {
-          //   return {
-          //     'stroke': this.outline(),
-          //     'fill': this.gradient()
-          //   };
-          // }
         }),
 
       // -----------------------------------------------------------------------
@@ -451,10 +439,8 @@ var pl = {debug: false};
           shadow: '#003355',
           highlight: '#003355',
           largeCircle: constantly({ 'stroke': "#E7E2C8",
-                                    'stroke-opacity': 0.5}),
-
+                                    'stroke-opacity': 0.5 }),
           gradient: constantly('#003355')
-
         })
     }
   };
@@ -491,6 +477,15 @@ var pl = {debug: false};
           window.innerWidth,
           window.innerHeight
         );
+        this.init = ignore;
+      },
+
+      reset: function() {
+        this.paper.clear();
+        this.paper.setSize(
+          window.innerWidth,
+          window.innerHeight
+        );
       },
 
       polyline: function(points, attributes) {
@@ -524,7 +519,9 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.CanvasBrush = function() {
+  pl.CanvasBrush = function(properties) {
+    this.canvas = null;
+    extend(this, properties);
   };
 
   pl.CanvasBrush.prototype = extend(
@@ -532,11 +529,14 @@ var pl = {debug: false};
       constructor: pl.CanvasBrush,
 
       init: function() {
-        this.paper = new Raphael(
-          0, 0,
-          window.innerWidth,
-          window.innerHeight
-        );
+        this.context = this.canvas.getContext('2d');
+      },
+
+      reset: function() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        // Possibly unnecessary.
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       },
 
       polyline: function(points, attributes) {
@@ -671,7 +671,11 @@ var pl = {debug: false};
   pl.Painter.prototype = {
     constructor: pl.Painter,
 
-    reset: function() {},
+    reset: function() {
+      this.point = [0, 0];
+      this.brush.reset();
+      this.compass.reset();
+    },
 
     directionTranslate: function(point, length, direction) {
       point = point || this.point;
@@ -732,7 +736,6 @@ var pl = {debug: false};
     measure: function(composition) {
       var oriBrush = this.brush;
 
-      this.compass.reset();
       this.compass.zoom = this.zoom;
       this.compass.angleRotation = this.angleRotation;
       this.brush = this.compass;
@@ -764,11 +767,10 @@ var pl = {debug: false};
               self._walker(stamp[1]);
             }
           } else {
-            if ( ! (this.brush instanceof pl.Compass &&
-                   stamp))
-            self[stamp[0]].apply(self, stamp.slice(1));
-
-          }});
+            if ( ! (self.brush instanceof pl.Compass &&
+                    stamp.dontMeasure)) {
+              self[stamp[0]].apply(self, stamp.slice(1));
+            }}});
     },
 
     drawComposition: function(composition) {
@@ -853,7 +855,9 @@ var pl = {debug: false};
       return true;
     },
 
-    init: function() {},
+    init: function() {
+      this.brush.init();
+    },
     destroy: function() {}
   };
 
@@ -876,15 +880,6 @@ var pl = {debug: false};
       destroy: function() {
         var canvas = this.paper.canvas;
         canvas.parentNode.removeChild(canvas);
-      },
-
-      reset: function() {
-        this.paper.clear();
-        this.paper.setSize(
-          window.innerWidth,
-          window.innerHeight
-        );
-        this.point = [0, 0];
       },
 
       line: function(length, direction, style) {
