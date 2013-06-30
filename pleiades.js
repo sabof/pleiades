@@ -340,14 +340,32 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   pl.ColorThemeFactory = function() {
-    this.make = this.make.bind(this, 'papyrus');
+    // this.make = this.make.bind(this, 'bluePrint');
   };
 
   pl.ColorThemeFactory.prototype = {
+    make: function(themeName) {
+      var proto = this.themes[
+        themeName || random({bluePrint: 1,
+                             blackNeon: 3,
+                             papyrus: 6})
+      ];
+      var theme = Object.create(proto);
+      theme.init();
+      // Doesn't look at the chain
+      Object.keys(proto)
+        .concat(Object.keys(theme))
+        .forEach(function(key) {
+        if(typeof theme[key] === 'string') {
+          theme[key] = constantly(theme[key]);
+        }
+      });
+      return theme;
+    },
+
+    // -------------------------------------------------------------------------
+
     themes: {
-
-      // -----------------------------------------------------------------------
-
       papyrus: (function() {
 
         function randomColor() {
@@ -391,38 +409,49 @@ var pl = {debug: false};
 
       // -----------------------------------------------------------------------
 
-      gray: extend(new pl.ColorTheme(), {
-        background: function() {
-          return random(['#888888', '#000000']);
+      blackNeon: extend(new pl.ColorTheme(), {
+        background: '#14090C',
+        outline: '#332727',
+        shadow: '#3A4344',
+        highlight: '#41473C',
+        largeCircle: constantly({ 'stroke': "#E7E2C8",
+                                  'stroke-opacity': 0.5}),
+        highlightRect: function() {
+          return {
+            'stroke': this.outline(),
+            'fill': this.highlight(),
+            'fill-opacity': random() * 0.4 + 0.1
+          };
         },
-        outline: '#333333',
-        shadow: '#000000',
-        highlight: '#999999',
-        largeCircle: constantly('#FFFFFF'),
-        gradHighlight: function() {
+
+        gradient: function() {
           var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
           return '45-' +
             pl.color.vary(oriColor, 100) + ':5-' +
             pl.color.vary(oriColor, 100) + ':95';
         }
-      })
-    },
 
-    make: function(themeName) {
-      var proto = this.themes[
-        themeName || random(Object.keys(this.themes))
-      ];
-      var theme = Object.create(proto);
-      theme.init();
-      // Doesn't look at the chain
-      Object.keys(proto)
-        .concat(Object.keys(theme))
-        .forEach(function(key) {
-        if(typeof theme[key] === 'string') {
-          theme[key] = constantly(theme[key]);
-        }
-      });
-      return theme;
+        // smallCircle: function() {
+        //   return {
+        //     'stroke': this.outline(),
+        //     'fill': this.gradient()
+        //   };
+        // }
+      }),
+
+      // -----------------------------------------------------------------------
+
+      bluePrint: extend(new pl.ColorTheme(), {
+        background: '#003355',
+        outline: '#E7E2C8',
+        shadow: '#003355',
+        highlight: '#003355',
+        largeCircle: constantly({ 'stroke': "#E7E2C8",
+                                  'stroke-opacity': 0.5}),
+
+        gradient: constantly('#003355')
+
+        })
     }
   };
 
@@ -442,13 +471,16 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.Painter = function() {
+  pl.Painter = function(properties) {
     this.compass = new pl.Compass();
     this.point = [0, 0];
     this._offset = [0, 0];
     this.directions = ['forward', 'right', 'back', 'left'];
     this.zoom = 4;
     this.angleRotation = 0;
+    if (properties) {
+      extend(this, properties);
+    }
   };
 
   pl.Painter.prototype = {
