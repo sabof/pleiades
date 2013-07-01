@@ -97,7 +97,7 @@ function init(type) {
       document.getElementById('ticket').value = previewer.ticket;
     },
     compositionFactory: new pl.CompositionFactory({
-      depth: 2,
+      depth: 5,
       sequenceLength: 15,
       stampFactory: stampFactory,
       colorThemeFactory: colorThemeFactory
@@ -105,8 +105,8 @@ function init(type) {
   });
   previewer.start(type === undefined ? 'loop' : type);
 }
-pl.util.makeTicket = pl.util.constantly('24B7');
-init('step');
+// pl.util.makeTicket = pl.util.constantly('24B7');
+init('loop');
 
 </script>
     </body>

@@ -346,28 +346,6 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.color = {
-    vary: function(color, intensity) {
-      intensity = intensity || 10;
-      var m = color.match(/^#([0-9a-f]{6})$/i)[1];
-      var parsed = [
-        parseInt(m.substr(0,2),16),
-        parseInt(m.substr(2,2),16),
-        parseInt(m.substr(4,2),16)
-      ];
-      var processed = parsed.map(
-        function(channel) {
-          var raw = channel + (random(intensity * 2) - intensity),
-              normalized = Math.min(255, Math.max(0, raw)),
-              stringified = pl.util.ensureLength(normalized.toString(16), 2);
-          return stringified;
-        });
-      return String.prototype.concat.apply('#', processed);
-    }
-  };
-
-  // ---------------------------------------------------------------------------
-
   pl.ColorTheme = function() {};
 
   pl.ColorTheme.prototype = {
@@ -383,8 +361,8 @@ var pl = {debug: false};
     gradient: function() {
       var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
       return '45-' +
-        pl.color.vary(oriColor, 100) + ':5-' +
-        pl.color.vary(oriColor, 100) + ':95';
+        new Color(oriColor).vary(100).toString() + ':5-' +
+        new Color(oriColor).vary(100).toString() + ':95';
     },
 
     // Styles
@@ -474,8 +452,8 @@ var pl = {debug: false};
       papyrus: (function() {
 
         function randomColor() {
-          return new Color(random(['#0000FF', '#CC0000', '#000000'])).
-            vary(150).toString();
+          return new Color(random(['#0000FF', '#CC0000', '#000000']))
+            .vary(150).toString();
         }
 
         return extend(
@@ -490,8 +468,8 @@ var pl = {debug: false};
             gradient: function() {
               var oriColor = randomColor();
               return '45-' +
-                pl.color.vary(oriColor, 50) + ':5-' +
-                pl.color.vary(oriColor, 50) + ':95';
+                new Color(oriColor).vary(50).toString() + ':5-' +
+                new Color(oriColor).vary(50).toString() + ':95';
             },
 
             // Styles
@@ -526,8 +504,8 @@ var pl = {debug: false};
           gradient: function() {
             var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
             return '45-' +
-              pl.color.vary(oriColor, 100) + ':5-' +
-              pl.color.vary(oriColor, 100) + ':95';
+              new Color(oriColor).vary(100).toString() + ':5-' +
+              new Color(oriColor).vary(100).toString() + ':95';
           }
         }),
 
