@@ -207,35 +207,36 @@ var pl = {debug: false};
 
   function Color(string) {
     /*jshint boss:true*/
-    var type, parsed, matches,
+    var matches,
         self = (this === undefined || this === window) ?
         Object.create(Color.prototype) : this;
     if (matches = string.match(/rgba\((\d+), ?(\d+), ?(\d+), ?(\d+)\)/i)) {
-      parsed = matches.slice(1).map(Number);
-      type = 'rbga';
+      self.channels = matches.slice(1, 4).map(Number);
+      self.transparency = matches[4];
+      self.type = 'rbga';
     } else if (matches = string.match(/rgb\((\d+), ?(\d+), ?(\d+)\)/i)) {
-      parsed = matches.slice(1).map(Number);
-      type = 'rbg';
+      self.channels = matches.slice(1).map(Number);
+      self.type = 'rgb';
     } else if (matches = string.match(/#([\dA-F]{2})([\dA-F]{2})([\dA-F]{2})/i)) {
-      parsed = matches.slice(1).map(function(hex) {
+      self.channels = matches.slice(1).map(function(hex) {
         return parseInt(hex, 16);
       });
-      type = 'hex';
+      self.type = 'hex';
     } else if (matches = string.match(/#([\dA-F])([\dA-F])([\dA-F])/i)) {
-      parsed = matches.slice(1).map(function(hex) {
+      self.channels = matches.slice(1).map(function(hex) {
         return parseInt(hex + hex, 16);
       });
-      type = 'hex';
+      self.type = 'hex';
     } else {
       throw new Error('Couldn\'t parse: ' + string);
     }
-    self.parsed = parsed;
-    self.type = type;
     return self;
   }
 
-  (function() {
-    function to(values, format) {
+  Color.prototype = {
+    constructor: Color,
+
+    _to: function(values, format) {
       if (format === 'rgba' ||
           (values[3] !== undefined) && ! format)
       {
@@ -243,7 +244,7 @@ var pl = {debug: false};
           values[0] + ', ' +
           values[1] + ', ' +
           values[2] + ', ' +
-          (values[3] === undefined) ? 1 : values[3] +
+          ((values[3] === undefined) ? 1 : values[3]) +
           ')';
       }
       if (format === 'rgb') {
@@ -253,33 +254,49 @@ var pl = {debug: false};
           values[2] + ')';
       }
       return String.prototype.concat
-        .apply('#', values.slice(0, 3)
-               .map(function(value) {
-                 return value.toString(16);
-               }))
-      .toUpperCase();
+        .apply('#',
+               values.slice(0, 3).map(
+                 function(value) {
+                   return pl.util.ensureLength(
+                     value.toString(16),
+                     2);
+                 }))
+        .toUpperCase();
+    },
+    vary: function(intensity) {
+      intensity = intensity || 10;
+      var transparency = this.channels[3],
+          colorChannels = this.channels.slice(0, 3);
+      colorChannels = colorChannels.map(function(channel) {
+        var raw = channel + (random(intensity * 2) - intensity),
+            normalized = Math.min(255, Math.max(0, raw));
+        return normalized; });
+      if (transparency !== undefined) {
+        colorChannels.push(transparency);
+      }
+      this.channels = colorChannels;
+      return this;
+    },
+
+    toRGB: function() { return this._to(this.channels, 'rgb'); },
+    toRGBA: function() {
+      return this._to(this.channels.concat(
+        [this.transparency === undefined ? 1 : this.transparency]),
+                      'rgba');
+    },
+    toHEX: function() { return this._to(this.channels, 'hex'); },
+    toString: function() {
+      return this._to(this.channels.concat(
+        [this.transparency === undefined ? 1 : this.transparency]));
+    },
+    alpha: function(val) {
+      if (val === undefined) {
+        return this.transparency;
+      }
+      this.transparency = val;
+      return this;
     }
-
-    Color.prototype = {
-      constructor: Color,
-      vary: function(intensity) {
-        intensity = intensity || 10;
-        var processed = this.parsed.map(
-          function(channel) {
-            var raw = channel + (random(intensity * 2) - intensity),
-                normalized = Math.min(255, Math.max(0, raw)),
-                stringified = pl.util.ensureLength(normalized.toString(16), 2);
-            return stringified;
-          });
-        // return String.prototype.concat.apply('#', processed);
-      },
-      toRGB: function() { return to(this.parsed, 'rgb'); },
-      toRGBA: function() { return to(this.parsed, 'rgba'); },
-      toHEX: function() { return to(this.parsed, 'hex'); },
-      toString: function() { return to(this.parsed); }
-    };
-
-  }());
+  };
 
   // ---------------------------------------------------------------------------
 
@@ -287,6 +304,8 @@ var pl = {debug: false};
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
     random: random,
+
+    Color: Color,
 
     rotateArray: rotateArray,
 
@@ -405,17 +424,20 @@ var pl = {debug: false};
     smallCircle: function() {
       return {
         'stroke': this.outline(),
-        'fill': this.highlight(),
-        'fill-opacity': random()
+        'fill': new Color(this.highlight())
+          .alpha(random())
+          .toString()
       };
     },
 
     ambientRect: function() {
       return {
-        'stroke-opacity': random() * 0.5 + 0.1,
-        'stroke': this.outline(),
-        'fill-opacity': random() / 10,
-        'fill': this.shadow()
+        'stroke': new Color(this.outline())
+          .alpha(random() * 0.5 + 0.1)
+          .toString(),
+        'fill': new Color(this.highlight())
+          .alpha(random() / 10)
+          .toString()
       };
     }
   };
@@ -452,11 +474,8 @@ var pl = {debug: false};
       papyrus: (function() {
 
         function randomColor() {
-          return pl.color.vary(random(['#0000FF',
-                                       '#CC0000',
-                                       // '#008800',
-                                       '#000000']),
-                               150);
+          return new Color(random(['#0000FF', '#CC0000', '#000000'])).
+            vary(150).toString();
         }
 
         return extend(
@@ -492,13 +511,15 @@ var pl = {debug: false};
           outline: '#332727',
           shadow: '#3A4344',
           highlight: '#41473C',
-          largeCircle: constantly({ 'stroke': "#E7E2C8",
-                                    'stroke-opacity': 0.5}),
+          largeCircle: constantly({
+            'stroke': new Color("#E7E2C8")
+              .alpha(0.5).toString()
+          }),
           highlightRect: function() {
             return {
               'stroke': this.outline(),
-              'fill': this.highlight(),
-              'fill-opacity': random() * 0.4 + 0.1
+              'fill': new Color(this.highlight())
+                .alpha(random() * 0.4 + 0.1).toString()
             };
           },
 
@@ -518,8 +539,10 @@ var pl = {debug: false};
           outline: '#E7E2C8',
           shadow: '#003355',
           highlight: '#003355',
-          largeCircle: constantly({ 'stroke': "#E7E2C8",
-                                    'stroke-opacity': 0.5 }),
+          largeCircle: constantly({
+            'stroke': new Color("#E7E2C8")
+              .alpha(0.5).toString()
+          }),
           gradient: constantly('#003355')
         })
     }
