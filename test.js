@@ -366,7 +366,17 @@ describe("Compass", function() {
            outerRect[2] === 5 &&
            outerRect[3] === 6
           ).toBeTruthy();
+  // ---------------------------------------------------------------------------
 
+  it('shouldn\'t move the point', function() {
+    composition = [[4, [['rect', 5, -5]]]];
+    var oldPoint = painter.point;
+    painter.measure(composition);
+    expect(painter.point[0])
+      .toEqual(oldPoint[0]);
+    expect(painter.point[1])
+      .toEqual(oldPoint[1]);
+  });
   // ---------------------------------------------------------------------------
 
   it('Outer rect should consist of numbers')
@@ -428,8 +438,8 @@ describe("Painter", function() {
         throw new Error('Was false');
       }
       result = true;
-    } catch (error) {
-      result = false;
+    } catch (e) {
+
     }
     expect(result).toBeTruthy();
   });
@@ -459,7 +469,6 @@ describe("angleRotation",  function() {
     var result = pl.util.rotatePoint([0, 0], [5, 5], 0);
     expect(result[1]).toEqual(5);
     expect(result[0]).toEqual(5);
-
   });
 });
 
@@ -495,6 +504,5 @@ describe('makeClass', function() {
     .toBeTruthy();
 });
 
-// Shoudn't move point
 // translatePoint
 // directionTranslate

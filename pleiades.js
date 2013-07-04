@@ -406,11 +406,8 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorTheme = function() {};
-
-  pl.ColorTheme.prototype = {
+  pl.ColorTheme = makeClass({
     init: function() {},
-    constructor: pl.ColorTheme,
 
     // Colors
 
@@ -479,15 +476,11 @@ var pl = {debug: false};
           .toString()
       };
     }
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorThemeFactory = function() {
-    // this.make = this.make.bind(this, 'bluePrint');
-  };
-
-  pl.ColorThemeFactory.prototype = {
+  pl.ColorThemeFactory = makeClass({
     make: function(themeName) {
       var proto = this.themes[
         themeName || random({bluePrint: pl.debug ? 0 : 1,
@@ -583,15 +576,14 @@ var pl = {debug: false};
           gradient: '#003355'
         })
     }
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.Brush = function() {
-    this._offset = [0, 0];
-  };
-
-  pl.Brush.prototype = {
+  pl.Brush = makeClass({
+    constructor: function() {
+      this._offset = [0, 0];
+    },
     _translatePoint: function(point) {
       var x = Math.round(this._offset[0] + point[0]),
           y = Math.round(this._offset[1] + point[1]);
@@ -605,185 +597,176 @@ var pl = {debug: false};
          [x, y + h]],
         attr);
     }
-
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.RaphaelBrush = function(properties) {
-    this.mask = [0, 0, 0, 0];
-    this.paper = null;
-    this._offset = [0, 0];
-    extend(this, properties);
-  };
+  pl.RaphaelBrush = pl.Brush.subclass({
+    constructor: function() {
+      this.mask = [0, 0, 0, 0];
+      this.paper = null;
+      this._offset = [0, 0];
+    },
 
-  pl.RaphaelBrush.prototype = extend(
-    new pl.Brush(), {
-      constructor: pl.RaphaelBrush,
+    init: function() {
+      this.paper = new Raphael(
+        0, 0,
+        window.innerWidth,
+        window.innerHeight
+      );
+      this.init = ignore;
+    },
 
-      init: function() {
-        this.paper = new Raphael(
-          0, 0,
-          window.innerWidth,
-          window.innerHeight
-        );
-        this.init = ignore;
-      },
+    reset: function() {
+      this.paper.clear();
+      this.paper.setSize(
+        window.innerWidth,
+        window.innerHeight
+      );
+    },
 
-      reset: function() {
-        this.paper.clear();
-        this.paper.setSize(
-          window.innerWidth,
-          window.innerHeight
-        );
-      },
+    translateAttributes: function(attributes) {
+      var attr = extend({}, attributes);
+      switch (attr['stroke-style']) {
+      case 'dotted':
+        attr['stroke-dasharray'] = '.';
+        break;
+      case 'dashed':
+        attr['stroke-dasharray'] = '-';
+        break;
+      }
+      if (attr.fill instanceof Array) {
+        attr.fill = '45-' +
+          attr.fill[0] + ':5-' +
+          attr.fill[1] + ':95';
+      }
+      delete attr['stroke-style'];
+      return attr;
+    },
 
-      translateAttributes: function(attributes) {
-        var attr = extend({}, attributes);
-        switch (attr['stroke-style']) {
+    polyline: function(points, attributes) {
+      if (rectanglesOverlap(this.mask,
+                            pointsToRect.apply(null, points)))
+      {
+        var adjPoints = points.map(this._translatePoint, this),
+            pathString = 'M'.concat(adjPoints.map(function(pair) {
+              return pair[0] + ' ' + pair[1];
+            }).join('L'), 'Z');
+        this.paper.path(pathString)
+          .attr(this.translateAttributes(attributes));
+      }
+    },
+
+    circle: function(point, radius, attributes) {
+      var rect = [
+        point[0] - radius,
+        point[1] - radius,
+        radius * 2,
+        radius * 2
+      ];
+      // The mask is unadjusted
+      if (rectanglesOverlap(rect, this.mask)) {
+        var adjPoint = this._translatePoint(point);
+        this.paper.circle(adjPoint[0], adjPoint[1], radius)
+          .attr(this.translateAttributes(attributes));
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+
+  pl.CanvasBrush = pl.Brush.subclass({
+    constructor: function() {
+      this.canvas = null;
+    },
+
+    init: function() {
+      this.context = this.canvas.getContext('2d');
+    },
+
+    applyStyle: function(attributes, rect) {
+      /*jshint sub:true*/
+      var ctx = this.context;
+      ctx.save();
+      if (attributes['stroke-width']) {
+        ctx.lineWidth = attributes['stroke-width'];
+      }
+      if (ctx.setLineDash) {
+        switch (attributes['stroke-style']) {
         case 'dotted':
-          attr['stroke-dasharray'] = '.';
+          ctx.setLineDash([2]);
           break;
         case 'dashed':
-          attr['stroke-dasharray'] = '-';
+          ctx.setLineDash([10, 4]);
           break;
         }
-        if (attr.fill instanceof Array) {
-          attr.fill = '45-' +
-            attr.fill[0] + ':5-' +
-            attr.fill[1] + ':95';
-        }
-        delete attr['stroke-style'];
-        return attr;
-      },
-
-      polyline: function(points, attributes) {
-        if (rectanglesOverlap(this.mask,
-                              pointsToRect.apply(null, points)))
-        {
-          var adjPoints = points.map(this._translatePoint, this),
-              pathString = 'M'.concat(adjPoints.map(function(pair) {
-                return pair[0] + ' ' + pair[1];
-              }).join('L'), 'Z');
-          this.paper.path(pathString)
-            .attr(this.translateAttributes(attributes));
-        }
-      },
-
-      circle: function(point, radius, attributes) {
-        var rect = [
-          point[0] - radius,
-          point[1] - radius,
-          radius * 2,
-          radius * 2
-        ];
-        // The mask is unadjusted
-        if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this._translatePoint(point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius)
-            .attr(this.translateAttributes(attributes));
-        }
       }
-    });
-
-  // ---------------------------------------------------------------------------
-
-  pl.CanvasBrush = function(properties) {
-    this.canvas = null;
-    extend(this, properties);
-  };
-
-  pl.CanvasBrush.prototype = extend(
-    new pl.Brush(), {
-      constructor: pl.CanvasBrush,
-
-      init: function() {
-        this.context = this.canvas.getContext('2d');
-      },
-
-      applyStyle: function(attributes, rect) {
-        /*jshint sub:true*/
-        var ctx = this.context;
-        ctx.save();
-        if (attributes['stroke-width']) {
-          ctx.lineWidth = attributes['stroke-width'];
+      if (attributes['fill']) {
+        if (attributes['fill'] instanceof Array) {
+          var grd = ctx.createLinearGradient(
+            rect[0],
+            rect[1],
+            rect[2] + rect[0],
+            rect[3] + rect[1]
+          );
+          grd.addColorStop(0, attributes['fill'][0]);
+          grd.addColorStop(1, attributes['fill'][1]);
+          this.context.fillStyle = grd;
+        } else {
+          this.context.fillStyle = attributes['fill'];
         }
-        if (ctx.setLineDash) {
-          switch (attributes['stroke-style']) {
-          case 'dotted':
-            ctx.setLineDash([2]);
-            break;
-          case 'dashed':
-            ctx.setLineDash([10, 4]);
-            break;
-          }
-        }
-        if (attributes['fill']) {
-          if (attributes['fill'] instanceof Array) {
-            var grd = ctx.createLinearGradient(
-              rect[0],
-              rect[1],
-              rect[2] + rect[0],
-              rect[3] + rect[1]
-            );
-            grd.addColorStop(0, attributes['fill'][0]);
-            grd.addColorStop(1, attributes['fill'][1]);
-            this.context.fillStyle = grd;
-          } else {
-            this.context.fillStyle = attributes['fill'];
-          }
-          ctx.fill();
-        }
-        if (attributes['stroke'] &&
-            attributes['stroke-width'] !== 0) {
-          this.context.strokeStyle = attributes['stroke'];
-          ctx.stroke();
-        }
-        ctx.restore();
-      },
-
-      reset: function() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        // Unnecessary?
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        // this.context.fillStyle = '#FF0000';
-        this.context.strokeStyle = '#0000FF';
-        this.context.lineWidth = 3;
-      },
-
-      polyline: function(points, attributes) {
-        var ctx = this.context,
-            adjPoints = points.map(this._translatePoint, this);
-        ctx.beginPath();
-        ctx.moveTo.apply(ctx, adjPoints[0]);
-
-        adjPoints.slice(1).forEach(function(point) {
-          ctx.lineTo.apply(ctx, point);
-        });
-        if (adjPoints.length > 2) {
-          ctx.closePath();
-        }
-        this.applyStyle(attributes, pointsToRect.apply(null, adjPoints));
-      },
-
-      circle: function(point, radius, attributes) {
-        var adjPoint = this._translatePoint(point),
-            ctx = this.context;
-        function circleRect() {
-          var pointTL = adjPoint.slice(0),
-              pointBR = adjPoint.slice(0);
-          pointTL[0] -= radius;
-          pointTL[1] -= radius;
-          pointBR[0] += radius;
-          pointBR[1] += radius;
-          return pointsToRect(pointTL, pointBR);
-        }
-        ctx.beginPath();
-        ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
-        this.applyStyle(attributes, circleRect());
+        ctx.fill();
       }
-    });
+      if (attributes['stroke'] &&
+          attributes['stroke-width'] !== 0) {
+        this.context.strokeStyle = attributes['stroke'];
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+
+    reset: function() {
+      this.canvas.width = window.innerWidth;
+      this.canvas.height = window.innerHeight;
+      // Unnecessary?
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // this.context.fillStyle = '#FF0000';
+      this.context.strokeStyle = '#0000FF';
+      this.context.lineWidth = 3;
+    },
+
+    polyline: function(points, attributes) {
+      var ctx = this.context,
+          adjPoints = points.map(this._translatePoint, this);
+      ctx.beginPath();
+      ctx.moveTo.apply(ctx, adjPoints[0]);
+
+      adjPoints.slice(1).forEach(function(point) {
+        ctx.lineTo.apply(ctx, point);
+      });
+      if (adjPoints.length > 2) {
+        ctx.closePath();
+      }
+      this.applyStyle(attributes, pointsToRect.apply(null, adjPoints));
+    },
+
+    circle: function(point, radius, attributes) {
+      var adjPoint = this._translatePoint(point),
+          ctx = this.context;
+      function circleRect() {
+        var pointTL = adjPoint.slice(0),
+            pointBR = adjPoint.slice(0);
+        pointTL[0] -= radius;
+        pointTL[1] -= radius;
+        pointBR[0] += radius;
+        pointBR[1] += radius;
+        return pointsToRect(pointTL, pointBR);
+      }
+      ctx.beginPath();
+      ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
+      this.applyStyle(attributes, circleRect());
+    }
+  });
 
   // ---------------------------------------------------------------------------
 
@@ -873,17 +856,14 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.Painter = function(properties) {
-    // this.compass = new pl.Compass();
-    this.point = [0, 0];
-    this._offset = [0, 0];
-    this.zoom = 4;
-    this.angleRotation = 0;
-    extend(this, properties);
-  };
-
-  pl.Painter.prototype = {
-    constructor: pl.Painter,
+  pl.Painter = makeClass({
+    constructor: function(properties) {
+      // this.compass = new pl.Compass();
+      this.point = [0, 0];
+      this._offset = [0, 0];
+      this.zoom = 4;
+      this.angleRotation = 0;
+    },
     // up, right, down, left
     directions: Object.freeze(['forward', 'right', 'back', 'left']),
     reset: function() {
@@ -1088,8 +1068,19 @@ var pl = {debug: false};
           {'stroke-width': 4,
            'stroke': 'blue'});
       }
+      (function() {
+        if ([pl.CanvasBrush,  pl.RaphaelBrush]
+            .indexOf(self.brush.constructor) === -1)
+        {
+          return;
+        }
+        // if (self.brush.constructor == pl.CanvasBrush &&
+        //     ! self.brush.canvas.parentNode) {
+        //   return;
+        // }
+        document.documentElement.style.background = composition.background;
+      }());
 
-      document.documentElement.style.background = composition.background;
       this._walker(composition);
       if (pl.debug) {
         this.brush.rect(
@@ -1104,7 +1095,7 @@ var pl = {debug: false};
       return true;
     }
 
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
@@ -1146,11 +1137,7 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.StampFactory = function(properties) {
-    extend(this, properties);
-  };
-
-  pl.StampFactory.prototype = {
+  pl.StampFactory = makeClass({
     reset: function() {
       var iterator = makeLooper(rotateArray(['dotted', 'none', 'dashed', 'none'],
                                             random(4)));
@@ -1346,7 +1333,7 @@ var pl = {debug: false};
                    [left, up, right, up] ]; }
       }
     }
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
