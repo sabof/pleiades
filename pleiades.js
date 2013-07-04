@@ -205,17 +205,23 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  function Color(string) {
+  function color(string) {
     /*jshint boss:true*/
     var matches,
         self = (this === undefined || this === window) ?
-        Object.create(Color.prototype) : this;
+        Object.create(color.prototype) : this;
     if (matches = string.match(/rgba\((\d+), ?(\d+), ?(\d+), ?(\d+)\)/i)) {
-      self.channels = matches.slice(1, 4).map(Number);
+      self.channels = matches.slice(1, 4).map(
+        function(num) {
+          return num.toString();
+        });
       self.transparency = matches[4];
       self.type = 'rbga';
     } else if (matches = string.match(/rgb\((\d+), ?(\d+), ?(\d+)\)/i)) {
-      self.channels = matches.slice(1).map(Number);
+      self.channels = matches.slice(1).map(
+        function(num) {
+          return num.toString();
+        });
       self.type = 'rgb';
     } else if (matches = string.match(/#([\dA-F]{2})([\dA-F]{2})([\dA-F]{2})/i)) {
       self.channels = matches.slice(1).map(function(hex) {
@@ -233,8 +239,8 @@ var pl = {debug: false};
     return self;
   }
 
-  Color.prototype = {
-    constructor: Color,
+  color.prototype = {
+    constructor: color,
 
     _to: function(values, format) {
       if (format === 'rgba' ||
@@ -305,7 +311,7 @@ var pl = {debug: false};
     // Inclusive, exclusive
     random: random,
 
-    Color: Color,
+    color: color,
 
     rotateArray: rotateArray,
 
@@ -361,8 +367,8 @@ var pl = {debug: false};
     gradient: function() {
       var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
       return '45-' +
-        new Color(oriColor).vary(100).toString() + ':5-' +
-        new Color(oriColor).vary(100).toString() + ':95';
+        color(oriColor).vary(100).toString() + ':5-' +
+        color(oriColor).vary(100).toString() + ':95';
     },
 
     // Styles
@@ -402,7 +408,7 @@ var pl = {debug: false};
     smallCircle: function() {
       return {
         'stroke': this.outline(),
-        'fill': new Color(this.highlight())
+        'fill': color(this.highlight())
           .alpha(random())
           .toString()
       };
@@ -410,10 +416,10 @@ var pl = {debug: false};
 
     ambientRect: function() {
       return {
-        'stroke': new Color(this.outline())
+        'stroke': color(this.outline())
           .alpha(random() * 0.5 + 0.1)
           .toString(),
-        'fill': new Color(this.highlight())
+        'fill': color(this.highlight())
           .alpha(random() / 10)
           .toString()
       };
@@ -429,8 +435,8 @@ var pl = {debug: false};
   pl.ColorThemeFactory.prototype = {
     make: function(themeName) {
       var proto = this.themes[
-        themeName || random({bluePrint: 1,
-                             blackNeon: 3,
+        themeName || random({bluePrint: pl.debug ? 0 : 1,
+                             blackNeon: pl.debug ? 0 : 3,
                              papyrus: 6})
       ];
       var theme = Object.create(proto);
@@ -452,7 +458,7 @@ var pl = {debug: false};
       papyrus: (function() {
 
         function randomColor() {
-          return new Color(random(['#0000FF', '#CC0000', '#000000']))
+          return color(random(['#0000FF', '#CC0000', '#000000']))
             .vary(150).toString();
         }
 
@@ -468,8 +474,8 @@ var pl = {debug: false};
             gradient: function() {
               var oriColor = randomColor();
               return '45-' +
-                new Color(oriColor).vary(50).toString() + ':5-' +
-                new Color(oriColor).vary(50).toString() + ':95';
+                color(oriColor).vary(50).toString() + ':5-' +
+                color(oriColor).vary(50).toString() + ':95';
             },
 
             // Styles
@@ -490,13 +496,13 @@ var pl = {debug: false};
           shadow: '#3A4344',
           highlight: '#41473C',
           largeCircle: constantly({
-            'stroke': new Color("#E7E2C8")
+            'stroke': color("#E7E2C8")
               .alpha(0.5).toString()
           }),
           highlightRect: function() {
             return {
               'stroke': this.outline(),
-              'fill': new Color(this.highlight())
+              'fill': color(this.highlight())
                 .alpha(random() * 0.4 + 0.1).toString()
             };
           },
@@ -504,8 +510,8 @@ var pl = {debug: false};
           gradient: function() {
             var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
             return '45-' +
-              new Color(oriColor).vary(100).toString() + ':5-' +
-              new Color(oriColor).vary(100).toString() + ':95';
+              color(oriColor).vary(100).toString() + ':5-' +
+              color(oriColor).vary(100).toString() + ':95';
           }
         }),
 
@@ -518,7 +524,7 @@ var pl = {debug: false};
           shadow: '#003355',
           highlight: '#003355',
           largeCircle: constantly({
-            'stroke': new Color("#E7E2C8")
+            'stroke': color("#E7E2C8")
               .alpha(0.5).toString()
           }),
           gradient: constantly('#003355')
@@ -537,7 +543,16 @@ var pl = {debug: false};
       var x = Math.round(this._offset[0] + point[0]),
           y = Math.round(this._offset[1] + point[1]);
       return [x, y];
+    },
+    rect: function(x, y, w, h, attr) {
+      this.polyline(
+        [[x, y],
+         [x + w, y],
+         [x + w, y + h],
+         [x, y + h]],
+        attr);
     }
+
   };
 
   // ---------------------------------------------------------------------------
@@ -571,9 +586,16 @@ var pl = {debug: false};
 
       translateAttributes: function(attributes) {
         var attr = attributes.slice(0);
-        if (attr['stroke-dasharray']) {
-
+        switch (attr['stroke-style']) {
+        case 'dotted':
+          attr['stroke-dasharray'] = '.';
+          break;
+        case 'dashed':
+          attr['stroke-dasharray'] = '-';
+          break;
         }
+        delete attr['stroke-style'];
+        return attr;
       },
 
       polyline: function(points, attributes) {
@@ -585,7 +607,7 @@ var pl = {debug: false};
                 return pair[0] + ' ' + pair[1];
               }).join('L'), 'Z');
           this.paper.path(pathString)
-            .attr(attributes);
+            .attr(this.translateAttributes(attributes));
         }
       },
 
@@ -600,7 +622,7 @@ var pl = {debug: false};
         if (rectanglesOverlap(rect, this.mask)) {
           var adjPoint = this._translatePoint(point);
           this.paper.circle(adjPoint[0], adjPoint[1], radius)
-            .attr(attributes);
+            .attr(this.translateAttributes(attributes));
         }
       }
     });
@@ -620,21 +642,30 @@ var pl = {debug: false};
         this.context = this.canvas.getContext('2d');
       },
 
-      setupAttributes: function(attributes) {
-        /*jshint sub: true*/
+      applyStyle: function(attributes) {
+        /*jshint sub:true*/
         var ctx = this.context;
+        ctx.save();
         if (attributes['stroke-width']) {
           ctx.lineWidth = attributes['stroke-width'];
         }
+        switch (attributes['stroke-style']) {
+        case 'dotted':
+          ctx.setLineDash([2]);
+          break;
+        case 'dashed':
+          ctx.setLineDash([10, 4]);
+          break;
+        }
         if (attributes['stroke']) {
           this.context.strokeStyle = attributes['stroke'];
+          ctx.stroke();
         }
         if (attributes['fill']) {
           this.context.fillStyle = attributes['fill'];
+          ctx.fill();
         }
-        if (attributes['fill']) {
-          this.context.fillStyle = attributes['fill'];
-        }
+        ctx.restore();
       },
 
       reset: function() {
@@ -650,34 +681,24 @@ var pl = {debug: false};
       polyline: function(points, attributes) {
         var ctx = this.context,
             adjPoints = points.map(this._translatePoint, this);
-        ctx.save();
-        this.setupAttributes(attributes);
         ctx.beginPath();
         ctx.moveTo.apply(ctx, adjPoints[0]);
 
         adjPoints.slice(1).forEach(function(point) {
           ctx.lineTo.apply(ctx, point);
         });
-
         if (adjPoints.length > 2) {
           ctx.closePath();
-          ctx.fill();
         }
-        ctx.stroke();
-        ctx.restore();
+        this.applyStyle(attributes);
       },
 
       circle: function(point, radius, attributes) {
         var adjPoint = this._translatePoint(point),
             ctx = this.context;
-
-        ctx.save();
-        this.setupAttributes(attributes);
         ctx.beginPath();
         ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
-        // ctx.fill();
-        ctx.stroke();
-        ctx.restore();
+        this.applyStyle(attributes);
       }
     });
 
@@ -924,15 +945,14 @@ var pl = {debug: false};
       if (pl.debug) {
         visible.forEach(function(rect) {
           var isPoint = (rect.length === 2) ? 1 : 0;
-          self.paper.rect(
-            rect[0] + self._offset[0] - isPoint,
-            rect[1] + self._offset[1] - isPoint,
+          self.brush.rect(
+            rect[0] - isPoint,
+            rect[1] - isPoint,
             rect[2] || 2,
-            rect[3] || 2 )
-            .attr(
-              {'stroke': isPoint ? 'red' : 'lime',
-               'stroke-width': 3
-              });
+            rect[3] || 2,
+            {'stroke': isPoint ? 'red' : 'lime',
+             'stroke-width': 3
+            });
         });
       }
 
@@ -953,17 +973,26 @@ var pl = {debug: false};
       }
 
       if (pl.debug) {
-        this.paper.rect.apply(this.paper, [
-          this.mask[0] + this._offset[0],
-          this.mask[1] + this._offset[1],
+        this.brush.rect(
+          this.mask[0],
+          this.mask[1],
           this.mask[2],
-          this.mask[3] ])
-          .attr({'stroke-width': 4, 'stroke': 'blue'});
+          this.mask[3],
+          {'stroke-width': 4,
+           'stroke': 'blue'});
       }
+
       document.documentElement.style.background = composition.background;
       this._walker(composition);
       if (pl.debug) {
-        this._drawBoundingBox();
+        this.brush.rect(
+          outerRect[0],
+          outerRect[1],
+          outerRect[2],
+          outerRect[3],
+          {'stroke-width': 2,
+           'stroke': 'red'}
+        );
       }
       return true;
     },
@@ -1020,16 +1049,6 @@ var pl = {debug: false};
       circle: function(radius, style) {
         var adjRadius = radius * this.zoom;
         this.brush.circle(this.point, adjRadius, style);
-      },
-
-      _drawBoundingBox: function() {
-        var outerRect = this.compass.getOuterRect(true);
-        this.paper.rect.apply(this.paper, [
-          outerRect[0] + this._offset[0],
-          outerRect[1] + this._offset[1],
-          outerRect[2],
-          outerRect[3]
-        ]).attr({'stroke-width': 2, 'stroke': 'red'});
       }
     }
   );
@@ -1051,19 +1070,19 @@ var pl = {debug: false};
 
   pl.StampFactory.prototype = {
     reset: function() {
-      var iterator = makeLooper(rotateArray(['.', 'none', '--', 'none'],
+      var iterator = makeLooper(rotateArray(['dotted', 'none', 'dashed', 'none'],
                                             random(4)));
 
       this.recipes.largeCircle = {
         probability: 20,
         maxLength: 1,
         func: function() {
-          var dasharray = iterator();
+          var dashStyle = iterator();
           var circle = [
             'circle',
             random(10, 300),
-            { 'stroke-width': (dasharray === 'none') ? 1 : 2,
-              'stroke-dasharray' : dasharray
+            { 'stroke-width': (dashStyle === 'none') ? 1 : 2,
+              'stroke-style' : dashStyle
             }
           ];
           circle.dontMeasure = true;
@@ -1170,7 +1189,7 @@ var pl = {debug: false};
             random(5, 10),
             random('direction'),
             extend({ 'stroke-width': random(1, 5) },
-                   random([{ 'stroke-dasharray' : '- ' },
+                   random([{ 'stroke-style' : 'dashed' },
                            {}]))
           ]; }
       },
@@ -1201,8 +1220,7 @@ var pl = {debug: false};
         probability: 100,
         maxLength: 1,
         func: function() {
-          var dimensions = [random(1, 3), random(3, 20)],
-              oriColor = random('color');
+          var dimensions = [random(1, 3), random(3, 20)];
           if (random(2)) {
             dimensions = rotateArray(dimensions);
           }
