@@ -77,8 +77,8 @@ function test_zoomAlignement() {
 function test_simpleRepeater() {
   generator = new pl.CompositionFactory();
   composition = [
-    [['line', 30, 'forward', {'stroke': 'black'}]],
-    [['rect', 30, 30, {'fill' : '#aa0044', 'stroke': 'black'}],
+    [['line', 30, 'back', {'stroke': 'black'}]],
+    [['rect', 30, -30, {'fill' : '#aa0044', 'stroke': 'black'}],
      ['line', 10, 'right', {'stroke': 'black'}]]
   ];
   composition[0].push([4, composition[1]]);
@@ -88,6 +88,7 @@ function test_simpleRepeater() {
      brushAttributes: {canvas: document.getElementById('pleiades-canvas')}});
   painter.init();
   painter.drawComposition(composition);
+  console.log(JSON.stringify(painter.compass.getOuterRect()));
 }
 
 function test_rotator() {
@@ -396,7 +397,7 @@ describe("Compass", function() {
   // ---------------------------------------------------------------------------
 
   describe('Four 5 pixel rectangles one after the other', function() {
-    var composition = [[4, [['rect', 5, 5]]]];
+    var composition = [[4, [['rect', 5, -5]]]];
     painter.reset();
     painter.measure(composition);
     var outerRect = compass.getOuterRect();
@@ -426,7 +427,10 @@ describe("Compass", function() {
 // -----------------------------------------------------------------------------
 
 describe("Painter", function() {
-  var painter = pl.painterFactory.make();
+
+  var painter = pl.painterFactory.make(
+    {brushAttributes: {canvas: document.createElement('canvas')}}
+  );
   painter.paper = new MockPaper();
   it("shouldn't throw, or return false1", function() {
     expect(function () {

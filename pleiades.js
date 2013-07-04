@@ -802,6 +802,7 @@ var pl = {debug: false};
 
   pl.Painter.prototype = {
     constructor: pl.Painter,
+    // up, right, down, left
     directions: Object.freeze(['forward', 'right', 'back', 'left']),
     reset: function() {
       this.point = [0, 0];
@@ -1005,6 +1006,7 @@ var pl = {debug: false};
       }
 
       document.documentElement.style.background = composition.background;
+      this.point = [0, 0];
       this._walker(composition);
       if (pl.debug) {
         this.brush.rect(
