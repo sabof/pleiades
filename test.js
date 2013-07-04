@@ -456,6 +456,11 @@ describe("angleRotation",  function() {
     }).toBeTruthy();
 });
 
+describe('color', function() {
+  // it()
+  pl.util.color('rgba(53, 107, 11, 1)');
+});
+
 // Shoudn't move point
 // translatePoint
 // directionTranslate

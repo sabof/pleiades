@@ -211,17 +211,15 @@ var pl = {debug: false};
         self = (this === undefined || this === window) ?
         Object.create(color.prototype) : this;
     if (matches = string.match(/rgba\((\d+), ?(\d+), ?(\d+), ?(\d+)\)/i)) {
-      self.channels = matches.slice(1, 4).map(
-        function(num) {
-          return num.toString();
-        });
+      self.channels = matches.slice(1, 4).map(function(num) {
+        return parseInt(num, 10);
+      });
       self.transparency = matches[4];
       self.type = 'rbga';
     } else if (matches = string.match(/rgb\((\d+), ?(\d+), ?(\d+)\)/i)) {
-      self.channels = matches.slice(1).map(
-        function(num) {
-          return num.toString();
-        });
+      self.channels = matches.slice(1).map(function(num) {
+        return parseInt(num, 10);
+      });
       self.type = 'rgb';
     } else if (matches = string.match(/#([\dA-F]{2})([\dA-F]{2})([\dA-F]{2})/i)) {
       self.channels = matches.slice(1).map(function(hex) {
@@ -236,6 +234,7 @@ var pl = {debug: false};
     } else {
       throw new Error('Couldn\'t parse: ' + string);
     }
+    self.input = string;
     return self;
   }
 
@@ -243,6 +242,10 @@ var pl = {debug: false};
     constructor: color,
 
     _to: function(values, format) {
+      if (values.some(isNaN)) {
+        throw new Error('Some channels are NaN: ' +
+                        JSON.stringify(values));
+      }
       if (format === 'rgba' ||
           (values[3] !== undefined) && ! format)
       {
@@ -271,14 +274,26 @@ var pl = {debug: false};
     },
     vary: function(intensity) {
       intensity = intensity || 10;
+      if (this.channels.some(isNaN)) {
+        throw new Error('Some channels are NaN: ' +
+                        JSON.stringify(this.channels));
+      }
       var transparency = this.channels[3],
           colorChannels = this.channels.slice(0, 3);
       colorChannels = colorChannels.map(function(channel) {
         var raw = channel + (random(intensity * 2) - intensity),
             normalized = Math.min(255, Math.max(0, raw));
+        // console.log(raw);
+        // console.log(normalized);
         return normalized; });
       if (transparency !== undefined) {
         colorChannels.push(transparency);
+      }
+      if (colorChannels.some(isNaN)) {
+        throw new Error('Some colorChannels are NaN: ' +
+                        JSON.stringify(this.input) + '->' +
+                        JSON.stringify(this.channels) + '->' +
+                        JSON.stringify(colorChannels));
       }
       this.channels = colorChannels;
       return this;
@@ -366,9 +381,10 @@ var pl = {debug: false};
     shadow: constantly('#ff0000'),
     gradient: function() {
       var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
-      return '45-' +
-        color(oriColor).vary(100).toString() + ':5-' +
-        color(oriColor).vary(100).toString() + ':95';
+      return [
+        color(oriColor).vary(100).toString(),
+        color(oriColor).vary(100).toString()
+      ];
     },
 
     // Styles
@@ -445,7 +461,7 @@ var pl = {debug: false};
       Object.keys(proto)
         .concat(Object.keys(theme))
         .forEach(function(key) {
-          if(typeof theme[key] === 'string') {
+          if(typeof theme[key] !== 'function') {
             theme[key] = constantly(theme[key]);
           }
         });
@@ -473,9 +489,8 @@ var pl = {debug: false};
             highlight: randomColor,
             gradient: function() {
               var oriColor = randomColor();
-              return '45-' +
-                color(oriColor).vary(50).toString() + ':5-' +
-                color(oriColor).vary(50).toString() + ':95';
+              return [color(oriColor).vary(50).toString(),
+                      color(oriColor).vary(50).toString()];
             },
 
             // Styles
@@ -509,9 +524,8 @@ var pl = {debug: false};
 
           gradient: function() {
             var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
-            return '45-' +
-              color(oriColor).vary(100).toString() + ':5-' +
-              color(oriColor).vary(100).toString() + ':95';
+            return [color(oriColor).vary(100).toString(),
+                    color(oriColor).vary(100).toString()];
           }
         }),
 
@@ -527,7 +541,7 @@ var pl = {debug: false};
             'stroke': color("#E7E2C8")
               .alpha(0.5).toString()
           }),
-          gradient: constantly('#003355')
+          gradient: '#003355'
         })
     }
   };
@@ -595,6 +609,11 @@ var pl = {debug: false};
           attr['stroke-dasharray'] = '-';
           break;
         }
+        if (attr.fill instanceof Array) {
+          attr.fill = '45-' +
+            attr.fill[0] + ':5-' +
+            attr.fill[1] + ':95';
+        }
         delete attr['stroke-style'];
         return attr;
       },
@@ -643,7 +662,7 @@ var pl = {debug: false};
         this.context = this.canvas.getContext('2d');
       },
 
-      applyStyle: function(attributes) {
+      applyStyle: function(attributes, rect) {
         /*jshint sub:true*/
         var ctx = this.context;
         ctx.save();
@@ -658,13 +677,25 @@ var pl = {debug: false};
           ctx.setLineDash([10, 4]);
           break;
         }
+        if (attributes['fill']) {
+          if (attributes['fill'] instanceof Array) {
+            var grd = ctx.createLinearGradient(
+              rect[0],
+              rect[1],
+              rect[2] + rect[0],
+              rect[3] + rect[1]
+            );
+            grd.addColorStop(0, attributes['fill'][0]);
+            grd.addColorStop(1, attributes['fill'][1]);
+            this.context.fillStyle = grd;
+          } else {
+            this.context.fillStyle = attributes['fill'];
+          }
+          ctx.fill();
+        }
         if (attributes['stroke']) {
           this.context.strokeStyle = attributes['stroke'];
           ctx.stroke();
-        }
-        if (attributes['fill']) {
-          this.context.fillStyle = attributes['fill'];
-          ctx.fill();
         }
         ctx.restore();
       },
@@ -691,15 +722,24 @@ var pl = {debug: false};
         if (adjPoints.length > 2) {
           ctx.closePath();
         }
-        this.applyStyle(attributes);
+        this.applyStyle(attributes, pointsToRect.apply(null, adjPoints));
       },
 
       circle: function(point, radius, attributes) {
         var adjPoint = this._translatePoint(point),
             ctx = this.context;
+        function circleRect() {
+          var pointTL = adjPoint.slice(0),
+              pointBR = adjPoint.slice(0);
+          pointTL[0] -= radius;
+          pointTL[1] -= radius;
+          pointBR[0] += radius;
+          pointBR[1] += radius;
+          return pointsToRect(pointTL, pointBR);
+        }
         ctx.beginPath();
         ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
-        this.applyStyle(attributes);
+        this.applyStyle(attributes, circleRect());
       }
     });
 
@@ -905,13 +945,15 @@ var pl = {debug: false};
     },
 
     measure: function(composition) {
-      var oriBrush = this.brush;
+      var oriBrush = this.brush,
+          oriPoint = this.point.slice(0);
 
       this.compass.zoom = this.zoom;
       // this.compass.angleRotation = this.angleRotation;
       this.brush = this.compass;
       this._walker(composition);
       this.brush = oriBrush;
+      this.point = oriPoint;
     },
 
     _walker: function(composition) {
@@ -1006,7 +1048,6 @@ var pl = {debug: false};
       }
 
       document.documentElement.style.background = composition.background;
-      this.point = [0, 0];
       this._walker(composition);
       if (pl.debug) {
         this.brush.rect(
@@ -1228,7 +1269,7 @@ var pl = {debug: false};
           return ['rect',
                   dimensions[0],
                   dimensions[1],
-                  { 'stroke-width': 1 }]; }
+                  { 'stroke-width': 2 }]; }
       },
 
       highlightRect: {
