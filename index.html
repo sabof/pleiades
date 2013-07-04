@@ -47,28 +47,36 @@ body {
 var generator, composition, ticket, brush, stampFactory;
 // pl.debug = true;
 
+function getURLParameter(name) {
+  var result = RegExp(name + '=' + '(.+?)(&|$)')
+      .exec(location.search);
+  if (result) {
+    return decodeURI(result[1]);
+  }
+}
+
 function initUI() {
   document.getElementById('ticket')
-  .addEventListener('focus', function() {
-    previewer.paused = true;
-  });
+    .addEventListener('focus', function() {
+      previewer.paused = true;
+    });
 
-document.getElementById('ticket')
-  .addEventListener('blur', function() {
-    previewer.paused = false;
-  });
+  document.getElementById('ticket')
+    .addEventListener('blur', function() {
+      previewer.paused = false;
+    });
 
-document.getElementById('ticket')
-  .addEventListener('keypress', function(e) {
-    if (!e) e = window.event;
-    var keyCode = e.keyCode || e.which;
-    if (keyCode === 13) {
-      var value = this.value.trim();
-      if (value.length === 4 && value !== ticket) {
-        ticket = value;
-        previewer.step(value);
-      }}
-  });
+  document.getElementById('ticket')
+    .addEventListener('keypress', function(e) {
+      if (!e) e = window.event;
+      var keyCode = e.keyCode || e.which;
+      if (keyCode === 13) {
+        var value = this.value.trim();
+        if (value.length === 4 && value !== ticket) {
+          ticket = value;
+          previewer.step(value);
+        }}
+    });
 }
 
 var previewer;
@@ -78,16 +86,18 @@ function init(type) {
   var colorThemeFactory = new pl.ColorThemeFactory(),
       stampFactory = new pl.StampFactory(),
       // brush = new pl.RaphaelBrush(),
-      brush = new pl.CanvasBrush(),
+      brush = (getURLParameter('brush') === 'svg' ?
+               new pl.RaphaelBrush() :
+               new pl.CanvasBrush()),
       compass = new pl.Compass();
   brush.canvas = document.getElementById('pleiades-canvas');
   brush.init();
   stampFactory.init();
   previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
-    painter: new pl.RaphaelPainter({zoom: 4,
-                                    brush: brush,
-                                    compass: compass}),
+    painter: new pl.Painter({zoom: 4,
+                             brush: brush,
+                             compass: compass}),
     loopInterval: 5,
     // beforeStepHook: function() {
     // var ticketInput = document.getElementById('ticket');
@@ -97,16 +107,33 @@ function init(type) {
       document.getElementById('ticket').value = previewer.ticket;
     },
     compositionFactory: new pl.CompositionFactory({
-      depth: 5,
-      sequenceLength: 15,
+      depth: 2,
+      sequenceLength: 7,
       stampFactory: stampFactory,
       colorThemeFactory: colorThemeFactory
     })
   });
   previewer.start(type === undefined ? 'loop' : type);
 }
-// pl.util.makeTicket = pl.util.constantly('24B7');
-init('loop');
+
+if (getURLParameter('debug')) {
+  pl.debug = true;
+}
+
+if (getURLParameter('ticket')) {
+  pl.util.makeTicket = pl.util.constantly(
+    getURLParameter('ticket')
+  );
+  init('step');
+} else {
+  init('loop');
+}
+
+// 13EC
+// previewer.composition = previewer.composition[0][1]
+// previewer.composition.splice(3,1);
+// previewer.composition = [['rect', 10, 10, {fill: 'black'}]];
+// previewer.composition = [['line', 1, 'right', {fill: 'black'}]];
 
 </script>
     </body>

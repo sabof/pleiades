@@ -337,11 +337,11 @@ var pl = {debug: false};
         4);
     },
 
-    objectsEqual: function(a, b) {
-      var aKeys = Object.keys(a);
-      var bKeys = Object.keys(a);
-      return true;
-    },
+    // objectsEqual: function(a, b) {
+    //   var aKeys = Object.keys(a);
+    //   var bKeys = Object.keys(a);
+    //   return true;
+    // },
 
     rangesOverlap: rangesOverlap,
     rotatePoint: rotatePoint,
@@ -560,6 +560,7 @@ var pl = {debug: false};
   pl.RaphaelBrush = function(properties) {
     this.mask = [0, 0, 0, 0];
     this.paper = null;
+    this._offset = [0, 0];
     extend(this, properties);
   };
 
@@ -585,7 +586,7 @@ var pl = {debug: false};
       },
 
       translateAttributes: function(attributes) {
-        var attr = attributes.slice(0);
+        var attr = extend({}, attributes);
         switch (attr['stroke-style']) {
         case 'dotted':
           attr['stroke-dasharray'] = '.';
@@ -760,13 +761,13 @@ var pl = {debug: false};
         var ob = this._outerBoundaries,
             points = [this._outerBoundaries.slice(0, 2),
                       this._outerBoundaries.slice(2, 4)];
-        if (adjusted) {
-          points = points.map(function(point) {
-            return [point[0] + this._offset[0],
-                    point[1] + this._offset[1]];
-          },
-                              this);
-        }
+        // if (adjusted) {
+        //   points = points.map(function(point) {
+        //     return [point[0] + this._offset[0],
+        //             point[1] + this._offset[1]];
+        //   },
+        //                       this);
+        // }
         return points[0].concat(
           [points[1][0] - points[0][0],
            points[1][1] - points[0][1]]
@@ -794,21 +795,26 @@ var pl = {debug: false};
     // this.compass = new pl.Compass();
     this.point = [0, 0];
     this._offset = [0, 0];
-    this.directions = ['forward', 'right', 'back', 'left'];
     this.zoom = 4;
     this.angleRotation = 0;
-    if (properties) {
-      extend(this, properties);
-    }
+    extend(this, properties);
   };
 
   pl.Painter.prototype = {
     constructor: pl.Painter,
-
+    directions: Object.freeze(['forward', 'right', 'back', 'left']),
     reset: function() {
       this.point = [0, 0];
       this.brush.reset();
       this.compass.reset();
+    },
+
+    init: function() {
+      this.brush.init();
+    },
+
+    destroy: function() {
+      this.brush.destroy();
     },
 
     directionTranslate: function(point, length, direction) {
@@ -841,10 +847,36 @@ var pl = {debug: false};
       return [x, y];
     },
 
-    line: function(length, direction) {},
+    line: function(length, direction, style) {
+      var oldPoint = this.point.slice(0);
+      this.move(length, direction);
+      var points = [oldPoint, this.point];
+      this.brush.polyline(points, style);
+    },
+
+    circle: function(radius, style) {
+      var adjRadius = radius * this.zoom;
+      this.brush.circle(this.point, adjRadius, style);
+    },
+
+    rect: function(width, height, style) {
+      // this.brush.rect()
+      var pointLB = this.point.slice(0),
+          pointRB = this.directionTranslate(pointLB, width, 'right'),
+          pointLT = this.directionTranslate(pointLB, height, 'forward'),
+          pointRT = this.directionTranslate(pointRB, height, 'forward'),
+          allPoints = [
+            pointLB,
+            pointRB,
+            pointRT,
+            pointLT
+          ];
+      this.brush.polyline(allPoints, style);
+      this.point = allPoints[2];
+    },
 
     move: function(length, direction) {
-      if ( this.directions.indexOf(direction) === -1)
+      if ( ['forward', 'right', 'back', 'left'].indexOf(direction) === -1)
       {
         throw new Error('Illegal direction: ' + direction);
       }
@@ -856,7 +888,11 @@ var pl = {debug: false};
     },
 
     rotate: function(reverse) {
-      this.directions = rotateArray(this.directions, reverse ? -1 : undefined);
+      var newAngle = this.angleRotation + (Math.PI / 2) * (reverse ? -1 : 1);
+      if (newAngle < 0) {
+        newAngle += Math.PI * 2;
+      }
+      this.angleRotation = newAngle;
     },
 
     rotateAngle: function(angle) {
@@ -871,23 +907,10 @@ var pl = {debug: false};
       var oriBrush = this.brush;
 
       this.compass.zoom = this.zoom;
-      this.compass.angleRotation = this.angleRotation;
+      // this.compass.angleRotation = this.angleRotation;
       this.brush = this.compass;
       this._walker(composition);
       this.brush = oriBrush;
-    },
-
-    reflect: function(across) {
-      var storage;
-      if (across) {
-        storage = this.directions[3];
-        this.directions[3] = this.directions[1];
-        this.directions[1] = storage;
-      } else {
-        storage = this.directions[2];
-        this.directions[2] = this.directions[0];
-        this.directions[0] = storage;
-      }
     },
 
     _walker: function(composition) {
@@ -911,14 +934,14 @@ var pl = {debug: false};
       var self = this,
           windowCenter = [
             window.innerWidth / 2,
-            window.innerHeight / 2 ],
-          imageCenter;
+            window.innerHeight / 2 ];
 
       this.reset();
       this.measure(composition);
 
-      var outerRect = this.compass.getOuterRect(true);
-      imageCenter = [
+      // No offset
+      var outerRect = this.compass.getOuterRect();
+      var imageCenter = [
         (outerRect[0] + outerRect[2] / 2),
         (outerRect[1] + outerRect[3] / 2)
       ];
@@ -944,13 +967,12 @@ var pl = {debug: false};
       });
       if (pl.debug) {
         visible.forEach(function(rect) {
-          var isPoint = (rect.length === 2) ? 1 : 0;
           self.brush.rect(
-            rect[0] - isPoint,
-            rect[1] - isPoint,
-            rect[2] || 2,
-            rect[3] || 2,
-            {'stroke': isPoint ? 'red' : 'lime',
+            rect[0],
+            rect[1],
+            rect[2],
+            rect[3],
+            {'stroke': 'lime',
              'stroke-width': 3
             });
         });
@@ -995,78 +1017,53 @@ var pl = {debug: false};
         );
       }
       return true;
-    },
-
-    init: function() {
-      this.brush.init();
-    },
-    destroy: function() {}
-  };
-
-  // ---------------------------------------------------------------------------
-
-  pl.RaphaelPainter = function(properties) {
-    if (properties) {
-      extend(this, properties);
     }
+
   };
-
-  pl.RaphaelPainter.prototype = extend(
-    new pl.Painter(), {
-      constructor: pl.RaphaelPainter,
-
-      init: function() {
-        this.paper = this.brush.paper;
-      },
-
-      destroy: function() {
-        var canvas = this.paper.canvas;
-        canvas.parentNode.removeChild(canvas);
-      },
-
-      line: function(length, direction, style) {
-        var oldPoint = this.point.slice(0);
-        this.move(length, direction);
-        var points = [oldPoint, this.point];
-        this.brush.polyline(points, style);
-      },
-
-      rect: function(width, height, style) {
-        var pointLB = this.point.slice(0),
-            pointRB = this.directionTranslate(pointLB, width, 'right'),
-            pointLT = this.directionTranslate(pointLB, height, 'forward'),
-            pointRT = this.directionTranslate(pointRB, height, 'forward'),
-            allPoints = [
-              pointLB,
-              pointRB,
-              pointRT,
-              pointLT
-            ];
-        this.brush.polyline(allPoints, style);
-        this.point = allPoints[2];
-      },
-
-      circle: function(radius, style) {
-        var adjRadius = radius * this.zoom;
-        this.brush.circle(this.point, adjRadius, style);
-      }
-    }
-  );
 
   // ---------------------------------------------------------------------------
 
   pl.painterFactory = {
-    make: function() {
+    make: function(attributes) {
       var painter = new pl.Painter();
-      painter.brush = new pl.RaphaelBrush();
+      if (attributes.type === 'svg') {
+        painter.brush = new pl.RaphaelBrush();
+      } else {
+        painter.brush = new pl.CanvasBrush();
+      }
+      delete attributes.type;
+      if (attributes) {
+        extend(painter.brush, attributes.brushAttributes);
+        delete attributes.brushAttributes;
+      }
       painter.compass = new pl.Compass();
+      if (attributes) {
+        extend(painter, attributes);
+      }
+      painter.init();
       return painter;
     }
   };
 
   // ---------------------------------------------------------------------------
 
-  pl.StampFactory = function() {};
+  pl.compositionFactoryFactory = {
+    make: function(attributes) {
+      var colorThemeFactory = new pl.ColorThemeFactory(),
+          stampFactory = new pl.StampFactory(
+            {colorThemeFactory: colorThemeFactory}),
+          compositionFactory = new pl.CompositionFactory(
+            {colorThemeFactory: colorThemeFactory,
+             stampFactory: stampFactory});
+      return compositionFactory;
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+
+  pl.StampFactory = function(properties) {
+    extend(this, properties);
+  };
 
   pl.StampFactory.prototype = {
     reset: function() {
@@ -1095,6 +1092,7 @@ var pl = {debug: false};
 
     init: function() {
       this.reset();
+      this.init = ignore;
     },
 
     makeMake: function() {
@@ -1118,7 +1116,8 @@ var pl = {debug: false};
             result = object.func.call(this),
             styles = [],
             self = this;
-        if (this.colorTheme[option]) {
+        if (this.colorTheme &&
+            this.colorTheme[option]) {
           if (typeof result[0] === 'string') {
             styles = [result[result.length - 1]];
           } else if (typeof result[0] === 'number') {
@@ -1269,9 +1268,7 @@ var pl = {debug: false};
   pl.CompositionFactory = function(properties) {
     this.depth = 5;
     this.sequenceLength = 15;
-    if (properties) {
-      extend(this, properties);
-    }
+    extend(this, properties);
   };
 
   pl.CompositionFactory.prototype = {

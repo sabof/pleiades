@@ -1,4 +1,4 @@
-/*global generator:true, composition:true, brush:true, pl, init, SeedRandom, describe, it, expect, jasmine*/
+/*global generator:true, composition:true, brush:true, pl, init, SeedRandom, describe, it, xit, expect, jasmine*/
 
 var plt = {};
 
@@ -7,7 +7,7 @@ SeedRandom.seed('test');
 // -----------------------------------------------------------------------------
 
 function test_directionTranslate() {
-  brush = new pl.RaphaelPainter();
+  brush = pl.painterFactory.make();
   console.log(
     [brush.directionTranslate([0,0], 5, 'up'),
      brush.directionTranslate([0,0], 5, 'right'),
@@ -29,19 +29,20 @@ function test_zoomer() {
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
-  // brush = new pl.RaphaelPainter();
+  // brush = pl.painterFactory.make();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_angleRotator() {
-  init();
   pl.debug = true;
-  brush.angleRotation = 0.1;
-  brush.zoom = 9;
+  var painter = pl.painterFactory.make();
+  // painter.angleRotation = Math.PI;
+  painter.angleRotation = 0;
+  painter.zoom = 4;
   composition = [
     [['move', 10, 'right']],
-    [ ['rect', 6, 6, {'fill' : '#aa0044'}],
+    [ ['rect', 4, 4, {'fill' : '#aa0044'}],
       ['circle', 1, {'fill' : '#aa0044'}],
       ['line', 4, 'right'],
       ['line', 4, 'forward'],
@@ -51,9 +52,10 @@ function test_angleRotator() {
   ];
   composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
-  brush.init();
-  brush.drawComposition(composition);
+  painter.init();
+  painter.drawComposition(composition);
 }
+
 function test_zoomAlignement() {
   init();
   composition = [
@@ -67,7 +69,7 @@ function test_zoomAlignement() {
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
-  // brush = new pl.RaphaelPainter();
+  // brush = pl.painterFactory.make();
   brush.init();
   brush.drawComposition(composition);
 }
@@ -75,19 +77,21 @@ function test_zoomAlignement() {
 function test_simpleRepeater() {
   generator = new pl.CompositionFactory();
   composition = [
-    [['line', 30, 'up']],
-    [['rect', 30, 30, {'fill' : '#aa0044'}],
-     ['line', 10, 'right']]
+    [['line', 30, 'forward', {'stroke': 'black'}]],
+    [['rect', 30, 30, {'fill' : '#aa0044', 'stroke': 'black'}],
+     ['line', 10, 'right', {'stroke': 'black'}]]
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = new pl.RaphaelPainter();
-  brush.init();
-  brush.drawComposition(composition);
+  var painter = pl.painterFactory.make(
+    {zoom: 1,
+     brushAttributes: {canvas: document.getElementById('pleiades-canvas')}});
+  painter.init();
+  painter.drawComposition(composition);
 }
 
 function test_rotator() {
-  generator = new pl.CompositionFactory();
+  generator = pl.compositionFactoryFactory.make();
   composition = [
     [['line', 30, 'down'],
      ['line', 30, 'right']],
@@ -99,13 +103,13 @@ function test_rotator() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = new pl.RaphaelPainter();
+  brush = pl.painterFactory.make();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_centerer() {
-  generator = new pl.CompositionFactory();
+  generator = pl.compositionFactoryFactory.make();
   composition = [
     [],
     [['rect', 30, 30, {'fill' : '#aa0044'}],
@@ -113,7 +117,7 @@ function test_centerer() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = new pl.RaphaelPainter();
+  brush = pl.painterFactory.make();
   brush.init();
   brush.drawComposition(composition);
 }
@@ -124,7 +128,7 @@ function fault_1316() {
     var colorThemeFactory = new pl.ColorThemeFactory(),
         stampFactory = new pl.StampFactory(colorThemeFactory);
 
-    return new pl.CompositionFactory({
+    return pl.compositionFactoryFactory.make({
       depth: 4,
       sequenceLength: 15,
       stampFactory: stampFactory,
@@ -173,7 +177,7 @@ function test_simpleDrawing() {
   //   [['rect', 30, 30, {'fill' : '#aa0044'}],
   //    ['line', 10, 'right']]
   // ],
-  brush = new pl.RaphaelPainter();
+  brush = pl.painterFactory.make();
   brush.init();
   brush.move(5, 'down');
   brush.move(5, 'right');
@@ -297,11 +301,9 @@ describe("Sequence validator", function() {
 // -----------------------------------------------------------------------------
 
 describe('sequenceFactory', function() {
-  var factory = new pl.StampFactory(),
-      recipes = factory.getOptions(),
-      dishes = recipes.map(function(name) {
-        return factory.make(name);
-      });
+  var colorThemeFactory = new pl.ColorThemeFactory(),
+      factory = new pl.StampFactory({colorThemeFactory: colorThemeFactory}),
+      recipes = factory.getOptions();
   recipes.forEach(function(recipe) {
     it('should produce a valid \"' + recipe + '\" stamp')
       .expect(plt.isStampValid(factory.make(recipe)))
@@ -315,7 +317,7 @@ describe("CompositionFactory", function() {
   var colorThemeFactory = new pl.ColorThemeFactory(),
       stampFactory = new pl.StampFactory(colorThemeFactory.make());
   stampFactory.init();
-  generator = new pl.CompositionFactory({
+  generator = pl.compositionFactoryFactory.make({
     colorThemeFactory: colorThemeFactory,
     stampFactory: stampFactory
   });
@@ -331,32 +333,47 @@ describe("CompositionFactory", function() {
 
 describe("Compass", function() {
   var compass = new pl.Compass(),
-      outerBoundaries,
+      painter = new pl.Painter({brush: compass,
+                                compass: compass,
+                                zoom: 1}),
+      outerRect,
       composition;
-  window.compass = compass;
-  compass.zoom = 1;
 
   // ---------------------------------------------------------------------------
 
-  compass.line(5, 'left');
-  outerBoundaries = compass.getOuterRect();
-  it('When a line is drawn the boundaries shoudld be adjusted').
-    expect(outerBoundaries[0] === -5 &&
-           outerBoundaries[1] === 0 &&
-           outerBoundaries[2] === 5 &&
-           outerBoundaries[3] === 0
+  compass.polyline([[-5, -6], [0, 0]]);
+  outerRect = compass.getOuterRect();
+  it('When a line is drawn the boundaries shoudld be adjusted (result: ' +
+     JSON.stringify(outerRect) + ')').
+    expect(outerRect[0] === -5 &&
+           outerRect[1] === -6 &&
+           outerRect[2] === 5 &&
+           outerRect[3] === 6
+          ).toBeTruthy();
+
+  compass.reset();
+
+  compass.rect(0, 0, 5, 6);
+  outerRect = compass.getOuterRect();
+  it('When a rectangle is drawn the boundaries shoudld be adjusted (result: ' +
+     JSON.stringify(outerRect) + ')').
+    expect(outerRect[0] === 0 &&
+           outerRect[1] === 0 &&
+           outerRect[2] === 5 &&
+           outerRect[3] === 6
           ).toBeTruthy();
 
   // ---------------------------------------------------------------------------
 
-  composition = [
-    ["line",5, "left", {"stroke-width":2}],
-    ["circle",8, {"stroke-width":0}]
-  ];
-  compass.measure(composition);
-  outerBoundaries = compass.getOuterRect();
   it('Outer rect should consist of numbers')
-    .expect(outerBoundaries.every(function(boundary) {
+    .expect(outerRect.every(function(boundary) {
+      var composition = [
+        ["line",5, "left", {"stroke-width":2}],
+        ["circle",8, {"stroke-width":0}]
+      ];
+      painter.reset();
+      painter.measure(composition);
+      outerRect = compass.getOuterRect();
       return (typeof boundary === 'number') &&
         ! isNaN(boundary);
     })).toBeTruthy();
@@ -365,22 +382,30 @@ describe("Compass", function() {
 
   it('Rotating a sequence should levave the point in the same place')
     .expect(function() {
-      composition = [
+      var composition = [
         [['rotate', true], ['move', 10, 'right']],
         [['rect', 3, 3, {'fill' : '#aa0044'}]
         ] ];
       composition[0].push(generator._makeZoomer(composition[1]));
       composition.unshift([4, composition[0]]);
-      compass.measure();
+      painter.reset();
+      painter.measure();
       return compass.point[0] === 0 && compass.point[1] === 0;
     }).toBeTruthy();
 
   // ---------------------------------------------------------------------------
 
-  composition = [[4, [['rect', 5, 5]]]];
-  compass.measure(composition);
-  var outerRect = compass.getOuterRect();
   describe('Four 5 pixel rectangles one after the other', function() {
+    var composition = [[4, [['rect', 5, 5]]]];
+    painter.reset();
+    painter.measure(composition);
+    var outerRect = compass.getOuterRect();
+    it(' should have 0 x')
+      .expect(outerRect[0])
+      .toEqual(0);
+    it(' should have 0 y')
+      .expect(outerRect[1])
+      .toEqual(0);
     it(' should have 20 pixels width')
       .expect(outerRect[2])
       .toEqual(20);
@@ -391,22 +416,22 @@ describe("Compass", function() {
 
   // ---------------------------------------------------------------------------
 
-  compass.measure(fault_1316());
+  painter.measure(fault_1316());
   it("shouldn't throw, or return false2")
     .expect(compass._objectRects)
     .toBeTruthy();
+
 });
 
 // -----------------------------------------------------------------------------
 
-describe("RaphaelPainter", function() {
-  brush = new pl.RaphaelPainter();
-  brush.paper = new MockPaper();
-  // jasmine.log('log test');
+describe("Painter", function() {
+  var painter = pl.painterFactory.make();
+  painter.paper = new MockPaper();
   it("shouldn't throw, or return false1", function() {
     expect(function () {
       try {
-        if (! brush.drawComposition(composition)) {
+        if (! painter.drawComposition(composition)) {
           throw new Error('Was false');
         }
       } catch (error) {
