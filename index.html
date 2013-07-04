@@ -7,6 +7,13 @@
 html {
   background: #C7C289;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
 }
 
 #ticket {
@@ -29,95 +36,104 @@ html {
         </style>
     </head>
     <body>
-        <input id="ticket" type="text" size="4"/>
-        <script src="lib/raphael.js"></script>
-        <script src="lib/seedrandom.js"></script>
-        <script src="pleiades.js"></script>
+      <canvas id="pleiades-canvas"></canvas>
+      <input id="ticket" type="text" size="4"/>
+      <script src="lib/raphael.js"></script>
+      <script src="lib/seedrandom.js"></script>
+      <script src="pleiades.js"></script>
 
 <script>
 
-var generator, composition, ticket, brush,
-    running = true;
+var generator, composition, ticket, brush, stampFactory;
 // pl.debug = true;
 
-function refresh() {
-  var ticketInput = document.getElementById('ticket');
-  if (document.body.className !== 'hidden' && running) {
-    while (true) {
-      ticket = pl.util.makeTicket();
-      SeedRandom.seed(ticket);
-      if (step()) {
-        ticketInput.value = ticket;
-        break;
-      }
-    }
+function getURLParameter(name) {
+  var result = RegExp(name + '=' + '(.+?)(&|$)')
+      .exec(location.search);
+  if (result) {
+    return decodeURI(result[1]);
   }
-  setTimeout(refresh, 6000);
 }
 
 function initUI() {
   document.getElementById('ticket')
-  .addEventListener('focus', function() {
-    running = false;
-  });
+    .addEventListener('focus', function() {
+      previewer.paused = true;
+    });
 
-document.getElementById('ticket')
-  .addEventListener('blur', function() {
-    running = true;
-  });
+  document.getElementById('ticket')
+    .addEventListener('blur', function() {
+      previewer.paused = false;
+    });
 
-document.getElementById('ticket')
-  .addEventListener('keypress', function(e) {
-    if (!e) e = window.event;
-    var keyCode = e.keyCode || e.which;
-    if (keyCode === 13) {
-      var value = this.value.trim();
-      if (value.length === 4 && value !== ticket) {
-        ticket = value;
-        SeedRandom.seed(ticket);
-        composition = generator.make();
-        brush.drawComposition(composition);
-      }}
-  });
+  document.getElementById('ticket')
+    .addEventListener('keypress', function(e) {
+      if (!e) e = window.event;
+      var keyCode = e.keyCode || e.which;
+      if (keyCode === 13) {
+        var value = this.value.trim();
+        if (value.length === 4 && value !== ticket) {
+          ticket = value;
+          previewer.step(value);
+        }}
+    });
 }
 
-function init() {
+var previewer;
+function init(type) {
   initUI();
-  brush = new pl.RaphaelBrush();
+  window.tmp = SeedRandom.getState();
+  var colorThemeFactory = new pl.ColorThemeFactory(),
+      stampFactory = new pl.StampFactory(),
+      // brush = new pl.RaphaelBrush(),
+      brush = (getURLParameter('brush') === 'svg' ?
+               new pl.RaphaelBrush() :
+               new pl.CanvasBrush()),
+      compass = new pl.Compass();
+  brush.canvas = document.getElementById('pleiades-canvas');
   brush.init();
-  generator = new pl.Generator()
-  // brush._showBoundingBox = true;
+  stampFactory.init();
+  previewer = new pl.Previewer({
+    colorThemeFactory: colorThemeFactory,
+    painter: new pl.Painter({zoom: 4,
+                             brush: brush,
+                             compass: compass}),
+    loopInterval: 5,
+    // beforeStepHook: function() {
+    // var ticketInput = document.getElementById('ticket');
+    // this.ticket = pl.util.makeTicket();
+    // },
+    afterStepHook: function() {
+      document.getElementById('ticket').value = previewer.ticket;
+    },
+    compositionFactory: new pl.CompositionFactory({
+      depth: 5,
+      sequenceLength: 15,
+      stampFactory: stampFactory,
+      colorThemeFactory: colorThemeFactory
+    })
+  });
+  previewer.start(type === undefined ? 'loop' : type);
 }
 
-function step() {
-  // SeedRandom.seed('4D30'); // invisible
-  // SeedRandom.seed('1421'); // small
-  // SeedRandom.seed('189E');
-  // brush.angleRotation = 0.1;
-  composition = generator.make();
-  return brush.drawComposition(composition);
+if (getURLParameter('debug')) {
+  pl.debug = true;
 }
 
-switch (2) {
-case 1:
-  SeedRandom.seed('test');
-  init();
-  step();
-  break;
-
-case 2:
-  init();
-  refresh();
-  break;
-
-case 0:
-  break;
-
-default:
-  init();
+if (getURLParameter('ticket')) {
+  pl.util.makeTicket = pl.util.constantly(
+    getURLParameter('ticket')
+  );
+  init('step');
+} else {
+  init('loop');
 }
 
-// test_angleRotator()
+// 13EC
+// previewer.composition = previewer.composition[0][1]
+// previewer.composition.splice(3,1);
+// previewer.composition = [['rect', 10, 10, {fill: 'black'}]];
+// previewer.composition = [['line', 1, 'right', {fill: 'black'}]];
 
 </script>
     </body>
