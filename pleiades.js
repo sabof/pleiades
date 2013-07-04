@@ -669,13 +669,15 @@ var pl = {debug: false};
         if (attributes['stroke-width']) {
           ctx.lineWidth = attributes['stroke-width'];
         }
-        switch (attributes['stroke-style']) {
-        case 'dotted':
-          ctx.setLineDash([2]);
-          break;
-        case 'dashed':
-          ctx.setLineDash([10, 4]);
-          break;
+        if (ctx.setLineDash) {
+          switch (attributes['stroke-style']) {
+          case 'dotted':
+            ctx.setLineDash([2]);
+            break;
+          case 'dashed':
+            ctx.setLineDash([10, 4]);
+            break;
+          }
         }
         if (attributes['fill']) {
           if (attributes['fill'] instanceof Array) {
