@@ -695,7 +695,8 @@ var pl = {debug: false};
           }
           ctx.fill();
         }
-        if (attributes['stroke']) {
+        if (attributes['stroke'] &&
+            attributes['stroke-width'] !== 0) {
           this.context.strokeStyle = attributes['stroke'];
           ctx.stroke();
         }
