@@ -324,10 +324,12 @@ describe("CompositionFactory", function() {
   });
   generator.sequenceLength = 4;
   generator.depth = 5;
-  composition = generator.make();
-  it("should create valid compositions 1")
-    .expect(plt.isSequenceValid(composition))
-    .toBeTruthy();
+  for (var i = 0; i < 10; i++) {
+    composition = generator.make();
+    it("should create valid compositions " + (i + 1))
+      .expect(plt.isSequenceValid(composition))
+      .toBeTruthy();
+  }
 });
 
 // -----------------------------------------------------------------------------
@@ -338,19 +340,20 @@ describe("Compass", function() {
                                 compass: compass,
                                 zoom: 1}),
       outerRect,
-      composition;
+      composition,
+      result;
 
   // ---------------------------------------------------------------------------
 
-  compass.polyline([[-5, -6], [0, 0]]);
-  outerRect = compass.getOuterRect();
-  it('When a line is drawn the boundaries shoudld be adjusted (result: ' +
-     JSON.stringify(outerRect) + ')').
-    expect(outerRect[0] === -5 &&
-           outerRect[1] === -6 &&
-           outerRect[2] === 5 &&
-           outerRect[3] === 6
-          ).toBeTruthy();
+  it('When a line is drawn the boundaries shoudld be adjusted', function() {
+    compass.reset();
+    compass.polyline([[-5, -6], [0, 0]]);
+    outerRect = compass.getOuterRect();
+    expect(outerRect[0]).toEqual(-5);
+    expect(outerRect[1]).toEqual(-6);
+    expect(outerRect[2]).toEqual(5);
+    expect(outerRect[3]).toEqual(6);
+  });
 
   compass.reset();
 
@@ -381,21 +384,6 @@ describe("Compass", function() {
 
   // ---------------------------------------------------------------------------
 
-  it('Rotating a sequence should levave the point in the same place')
-    .expect(function() {
-      var composition = [
-        [['rotate', true], ['move', 10, 'right']],
-        [['rect', 3, 3, {'fill' : '#aa0044'}]
-        ] ];
-      composition[0].push(generator._makeZoomer(composition[1]));
-      composition.unshift([4, composition[0]]);
-      painter.reset();
-      painter.measure();
-      return compass.point[0] === 0 && compass.point[1] === 0;
-    }).toBeTruthy();
-
-  // ---------------------------------------------------------------------------
-
   describe('Four 5 pixel rectangles one after the other', function() {
     var composition = [[4, [['rect', 5, -5]]]];
     painter.reset();
@@ -417,48 +405,94 @@ describe("Compass", function() {
 
   // ---------------------------------------------------------------------------
 
-  painter.measure(fault_1316());
-  it("shouldn't throw, or return false2")
-    .expect(compass._objectRects)
-    .toBeTruthy();
+  it("shouldn't throw, or return false2", function() {
+    painter.measure(fault_1316());
+    expect(compass._objectRects)
+      .toBeTruthy();
+  });
 
 });
 
 // -----------------------------------------------------------------------------
 
 describe("Painter", function() {
-
+  var result;
   var painter = pl.painterFactory.make(
     {brushAttributes: {canvas: document.createElement('canvas')}}
   );
-  painter.paper = new MockPaper();
+  // painter.paper = new MockPaper();
   it("shouldn't throw, or return false1", function() {
-    expect(function () {
-      try {
-        if (! painter.drawComposition(composition)) {
-          throw new Error('Was false');
-        }
-      } catch (error) {
-        return false;
+    var result = false;
+    try {
+      if (! painter.drawComposition(composition)) {
+        throw new Error('Was false');
       }
-      return true;
-    }).toBeTruthy();
+      result = true;
+    } catch (error) {
+      result = false;
+    }
+    expect(result).toBeTruthy();
   });
+
+  // ---------------------------------------------------------------------------
+
+  it('with a rotating a sequence should levave the point in the same place', function() {
+    var composition = [
+      [['rotate', true], ['move', 10, 'right']],
+      [['rect', 3, 3, {'fill' : '#aa0044'}]
+      ] ];
+    composition[0].push(generator._makeZoomer(composition[1]));
+    composition = [[4, composition[0]]];
+    plt.isSequenceValid(composition);
+    painter.reset();
+    painter.drawComposition(composition);
+    expect(painter.point[0]).toEqual(0);
+    expect(painter.point[1]).toEqual(0);
+  });
+
 });
 
 // -----------------------------------------------------------------------------
 
 describe("angleRotation",  function() {
-  it('Should retrun the same number when rotated by 0 radias')
-    .expect(function() {
-      var result = pl.util.rotate([0, 0], [5, 5], 0);
-      return result[0] === 5 && result[1] === 5;
-    }).toBeTruthy();
+  it('Should returun the same number when rotated by 0 radias', function() {
+    var result = pl.util.rotatePoint([0, 0], [5, 5], 0);
+    expect(result[1]).toEqual(5);
+    expect(result[0]).toEqual(5);
+
+  });
 });
 
 describe('color', function() {
   // it()
-  pl.util.color('rgba(53, 107, 11, 1)');
+  it('should pass-throuh rgba(53, 107, 11, 1)')
+    .expect(pl.util.color('rgba(53, 107, 11, 1)').toString())
+    .toEqual('rgba(53, 107, 11, 1)');
+});
+
+describe('makeClass', function() {
+
+  var parent = {p: 1};
+  var Child = pl.util.makeClass({
+    parent: parent,
+    c: 2
+  });
+  var child = new Child();
+
+  it('Child should be able to subclass').
+    expect(typeof Child.subclass === 'function').toBeTruthy();
+  var Grandchild = Child.subclass({
+    g: 3
+  });
+  var grandchild = new Grandchild();
+  it('child should inherit properties').
+    expect(child.p === 1 && child.c === 2)
+    .toBeTruthy();
+  it('grandchild should inherit properties').
+    expect(grandchild.p === 1 &&
+           grandchild.c === 2 &&
+           grandchild.g === 3)
+    .toBeTruthy();
 });
 
 // Shoudn't move point

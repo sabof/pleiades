@@ -104,10 +104,10 @@ var pl = {debug: false};
 
   var rotatePoint = function(pivot, point, angle) {
     // Rotate clockwise, angle in radians
-    var x = ((Math.cos(angle) * (point[0] - pivot[0])) -
+    var x = Math.round((Math.cos(angle) * (point[0] - pivot[0])) -
              (Math.sin(angle) * (point[1] - pivot[1])) +
              pivot[0]),
-        y = ((Math.sin(angle) * (point[0] - pivot[0])) +
+        y = Math.round((Math.sin(angle) * (point[0] - pivot[0])) +
              (Math.cos(angle) * (point[1] - pivot[1])) +
              pivot[1]);
     return [x, y];
@@ -174,6 +174,43 @@ var pl = {debug: false};
     return original;
   };
 
+  var makeClass = function(args) {
+    var constructor = args.constructor;
+    delete args.constructor;
+    var C = function(props) {
+      if (constructor) {
+        constructor.call(this, props);
+      }
+      extend(this, props);
+    };
+
+    if (typeof args.parent === 'object') {
+      C.prototype = Object.create(args.parent);
+      C.prototype.constructor = C;
+    } else if (typeof args.parent === 'function') {
+      C.prototype = Object.create(new args.parent());
+      C.prototype.constructor = C;
+    }
+    delete args.parent;
+
+    C.subclass = function(args) {
+      var constructor = args.constructor;
+      function C2(props) {
+        if (constructor) {
+          constructor.call(this, props);
+        }
+        extend(this, props);
+      }
+      C2.prototype = Object.create(new C());
+      C2.prototype.constructor = C;
+      extend(C2.prototype, args);
+      return C2;
+    };
+
+    extend(C.prototype, args);
+    return C;
+  };
+
   var wrap = function(oriFunc, wrapFunc) {
     var resultFunc = function() {
       var self = this;
@@ -208,8 +245,8 @@ var pl = {debug: false};
   function color(string) {
     /*jshint boss:true*/
     var matches,
-        self = (this === undefined || this === window) ?
-        Object.create(color.prototype) : this;
+        self = (this && this.constructor === color) ? this :
+        Object.create(color.prototype);
     if (matches = string.match(/rgba\((\d+), ?(\d+), ?(\d+), ?(\d+)\)/i)) {
       self.channels = matches.slice(1, 4).map(function(num) {
         return parseInt(num, 10);
@@ -325,6 +362,8 @@ var pl = {debug: false};
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
     random: random,
+
+    makeClass: makeClass,
 
     color: color,
 
