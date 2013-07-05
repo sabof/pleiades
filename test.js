@@ -480,7 +480,6 @@ describe('color', function() {
 });
 
 describe('makeClass', function() {
-
   var parent = {p: 1};
   var Child = pl.util.makeClass({
     parent: parent,
@@ -497,11 +496,14 @@ describe('makeClass', function() {
   it('child should inherit properties').
     expect(child.p === 1 && child.c === 2)
     .toBeTruthy();
-  it('grandchild should inherit properties').
-    expect(grandchild.p === 1 &&
-           grandchild.c === 2 &&
-           grandchild.g === 3)
+  it('grandchild should inherit properties')
+    .expect(grandchild.p === 1 &&
+            grandchild.c === 2 &&
+            grandchild.g === 3)
     .toBeTruthy();
+  it('The prototype chain should be correct')
+    .expect(grandchild.__proto__.__proto__)
+    .toEqual(Child.prototype);
 });
 
 // translatePoint
