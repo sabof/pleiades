@@ -195,13 +195,14 @@ var pl = {debug: false};
 
     C.subclass = function(args) {
       var constructor = args.constructor;
+      delete args.constructor;
       function C2(props) {
         if (constructor) {
           constructor.call(this, props);
         }
         extend(this, props);
       }
-      C2.prototype = Object.create(new C());
+      C2.prototype = new C();
       C2.prototype.constructor = C;
       extend(C2.prototype, args);
       return C2;
@@ -770,89 +771,87 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.Compass = function() {
-    this._objectRects = [];
-    this._outerBoundaries = undefined;
-  };
+  pl.Compass = pl.Brush.subclass({
+    constructor: function() {
+      this._objectRects = [];
+      this._outerBoundaries = undefined;
+    },
+    reset: function() {
+      this._outerBoundaries = undefined;
+      this._objectRects = [];
+    },
 
-  pl.Compass.prototype = extend(
-    new pl.Brush(), {
-      reset: function() {
-        this._outerBoundaries = undefined;
-        this._objectRects = [];
-      },
+    trackIt: function(rect) {
+      var self = this;
+      function adjustOuterBoundaries(point) {
+        var x = point[0],
+            y = point[1];
 
-      trackIt: function(rect) {
-        var self = this;
-        function adjustOuterBoundaries(point) {
-          var x = point[0],
-              y = point[1];
-
-          if ( ! self._outerBoundaries) {
-            self._outerBoundaries = [x, y, x, y];
-          } else {
-            self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
-            self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
-            self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
-            self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
-          }
+        if ( ! self._outerBoundaries) {
+          self._outerBoundaries = [x, y, x, y];
+        } else {
+          self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
+          self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
+          self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
+          self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
         }
-
-        if (rect.length < 2) {
-          throw new Error(
-            'Wrong number of members: ' +
-              rect.length);
-        }
-        if ( ! rect.every(function(num) {
-          return typeof num === 'number' && ! isNaN(num); }))
-        { throw new Error(
-          'Some members are not numbers: ' +
-            JSON.stringify(rect));
-        }
-
-        this._objectRects.push(rect);
-
-        adjustOuterBoundaries([rect[0], rect[1]]);
-        if (rect.length === 4) {
-          adjustOuterBoundaries([rect[0] + rect[2],
-                                 rect[1] + rect[3]]);
-        }
-      },
-
-      getOuterRect: function(adjusted) {
-        if ( ! this._outerBoundaries) {
-          throw new Error('Boundaries not calculated');
-        }
-        var ob = this._outerBoundaries,
-            points = [this._outerBoundaries.slice(0, 2),
-                      this._outerBoundaries.slice(2, 4)];
-        // if (adjusted) {
-        //   points = points.map(function(point) {
-        //     return [point[0] + this._offset[0],
-        //             point[1] + this._offset[1]];
-        //   },
-        //                       this);
-        // }
-        return points[0].concat(
-          [points[1][0] - points[0][0],
-           points[1][1] - points[0][1]]
-        );
-      },
-
-      polyline: function(points) {
-        var rectPoints = pointsToRect.apply(null, points);
-        this.trackIt(rectPoints);
-      },
-
-      circle: function(point, radius) {
-        this.trackIt([
-          point[0] - radius,
-          point[1] - radius,
-          radius * 2,
-          radius * 2
-        ]);
       }
-    });
+
+      if (rect.length < 2) {
+        throw new Error(
+          'Wrong number of members: ' +
+            rect.length);
+      }
+      if ( ! rect.every(function(num) {
+        return typeof num === 'number' && ! isNaN(num); }))
+      { throw new Error(
+        'Some members are not numbers: ' +
+          JSON.stringify(rect));
+      }
+
+      this._objectRects.push(rect);
+
+      adjustOuterBoundaries([rect[0], rect[1]]);
+      if (rect.length === 4) {
+        adjustOuterBoundaries([rect[0] + rect[2],
+                               rect[1] + rect[3]]);
+      }
+    },
+
+    getOuterRect: function(adjusted) {
+      if ( ! this._outerBoundaries) {
+        throw new Error('Boundaries not calculated');
+      }
+      var ob = this._outerBoundaries,
+          points = [this._outerBoundaries.slice(0, 2),
+                    this._outerBoundaries.slice(2, 4)];
+      // if (adjusted) {
+      //   points = points.map(function(point) {
+      //     return [point[0] + this._offset[0],
+      //             point[1] + this._offset[1]];
+      //   },
+      //                       this);
+      // }
+      return points[0].concat(
+        [points[1][0] - points[0][0],
+         points[1][1] - points[0][1]]
+      );
+    },
+
+    polyline: function(points) {
+      var rectPoints = pointsToRect.apply(null, points);
+      this.trackIt(rectPoints);
+    },
+
+    circle: function(point, radius) {
+      this.trackIt([
+        point[0] - radius,
+        point[1] - radius,
+        radius * 2,
+        radius * 2
+      ]);
+    }
+  });
 
   // ---------------------------------------------------------------------------
 
@@ -1069,15 +1068,15 @@ var pl = {debug: false};
            'stroke': 'blue'});
       }
       (function() {
-        if ([pl.CanvasBrush,  pl.RaphaelBrush]
-            .indexOf(self.brush.constructor) === -1)
-        {
-          return;
-        }
-        // if (self.brush.constructor == pl.CanvasBrush &&
-        //     ! self.brush.canvas.parentNode) {
+        // if ([pl.CanvasBrush, pl.RaphaelBrush]
+        //     .indexOf(self.brush.constructor) === -1)
+        // {
         //   return;
         // }
+        if (self.brush.constructor == pl.CanvasBrush &&
+            ! self.brush.canvas.parentNode) {
+          return;
+        }
         document.documentElement.style.background = composition.background;
       }());
 
@@ -1337,14 +1336,11 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.CompositionFactory = function(properties) {
-    this.depth = 5;
-    this.sequenceLength = 15;
-    extend(this, properties);
-  };
-
-  pl.CompositionFactory.prototype = {
-    constructor: pl.CompositionFactory,
+  pl.CompositionFactory = makeClass({
+    constructor: function(properties) {
+      this.depth = 5;
+      this.sequenceLength = 15;
+    },
 
     maybeRange: function(thing) {
       if (thing instanceof Array) {
@@ -1434,15 +1430,11 @@ var pl = {debug: false};
                      length: 1,
                      background: colorTheme.background()});
     }
-  };
+  });
 
   // -----------------------------------------------------------------------------
 
-  pl.Previewer = function(properties) {
-    extend(this, properties);
-  };
-
-  pl.Previewer.prototype = {
+  pl.Previewer = makeClass({
     stampFactory: null,
     beforeStepHook: constantly(false),
     afterStepHook: constantly(false),
@@ -1508,5 +1500,5 @@ var pl = {debug: false};
         this.init();
       }
     }
-  };
+  });
 }());
