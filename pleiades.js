@@ -593,7 +593,15 @@ var pl = {debug: false};
 
     circle: function() {},
 
-    finalize: function() {}
+    finalize: function() {},
+
+    setOffset: function(offset) {
+      this._offset = offset;
+    },
+
+    setMask: function(mask) {
+      this.mask = mask;
+    }
 
   });
 
@@ -672,9 +680,15 @@ var pl = {debug: false};
         } else if (elem[1] === 'circle') {
           elem.slice(3).forEach(function(spec) {
             self.slaveBrush.circle(spec[0], spec[1], elem[2]);
-          });
-        }
-      });
+          }); }});
+    },
+
+    setOffset: function(offset) {
+      this.slaveBrush._offset = offset;
+    },
+
+    setMask: function(mask) {
+      this.slaveBrush.mask = mask;
     }
   });
 
@@ -937,7 +951,6 @@ var pl = {debug: false};
     constructor: function(properties) {
       // this.compass = new pl.Compass();
       this.point = [0, 0];
-      this._offset = [0, 0];
       this.zoom = 4;
       this.angleRotation = 0;
     },
@@ -1077,7 +1090,8 @@ var pl = {debug: false};
     },
 
     drawComposition: function(composition) {
-      var self = this,
+      var offset, mask,
+          self = this,
           windowCenter = [
             window.innerWidth / 2,
             window.innerHeight / 2
@@ -1092,11 +1106,11 @@ var pl = {debug: false};
         outerRect[0] + outerRect[2] / 2,
         outerRect[1] + outerRect[3] / 2
       ];
-      this._offset = [
+      offset = [
         Math.round(windowCenter[0] - imageCenter[0]),
         Math.round(windowCenter[1] - imageCenter[1])
       ];
-      this.brush._offset = this._offset;
+      this.brush.setOffset(offset);
       var windowTranslatedRect =
           pointsToRect.apply(
             null,
@@ -1104,8 +1118,8 @@ var pl = {debug: false};
               .map(
                 function(point) {
                   return [
-                    point[0] - this._offset[0],
-                    point[1] - this._offset[1]
+                    point[0] - offset[0],
+                    point[1] - offset[1]
                   ];
                 },
                 this));
@@ -1131,8 +1145,7 @@ var pl = {debug: false};
         }
         return false;
       } else {
-        this.mask = windowTranslatedRect;
-        this.brush.mask = windowTranslatedRect;
+        this.brush.setMask(windowTranslatedRect);
         // this.mask = [
         //   windowTranslatedRect[0] + 200,
         //   windowTranslatedRect[1] + 200,
@@ -1143,10 +1156,10 @@ var pl = {debug: false};
 
       if (pl.debug) {
         this.brush.rect(
-          this.mask[0],
-          this.mask[1],
-          this.mask[2],
-          this.mask[3],
+          windowTranslatedRect[0],
+          windowTranslatedRect[1],
+          windowTranslatedRect[2],
+          windowTranslatedRect[3],
           {'stroke-width': 4,
            'stroke': 'blue'});
       }
