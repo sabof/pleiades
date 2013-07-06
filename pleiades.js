@@ -810,8 +810,8 @@ var pl = {debug: false};
       // Unnecessary?
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       // this.context.fillStyle = '#FF0000';
-      this.context.strokeStyle = '#0000FF';
-      this.context.lineWidth = 3;
+      // this.context.strokeStyle = '#0000FF';
+      // this.context.lineWidth = 3;
     },
 
     polyline: function(points, attributes) {

@@ -430,6 +430,8 @@ describe("Painter", function() {
   var painter = pl.painterFactory.make(
     {brushAttributes: {canvas: document.createElement('canvas')}}
   );
+  painter.setBackground = function() {};
+
   // painter.paper = new MockPaper();
   it("shouldn't throw, or return false1", function() {
     var result = false;
@@ -438,9 +440,7 @@ describe("Painter", function() {
         throw new Error('Was false');
       }
       result = true;
-    } catch (e) {
-
-    }
+    } catch (e) {}
     expect(result).toBeTruthy();
   });
 
