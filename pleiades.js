@@ -105,11 +105,11 @@ var pl = {debug: false};
   var rotatePoint = function(pivot, point, angle) {
     // Rotate clockwise, angle in radians
     var x = Math.round((Math.cos(angle) * (point[0] - pivot[0])) -
-             (Math.sin(angle) * (point[1] - pivot[1])) +
-             pivot[0]),
+                       (Math.sin(angle) * (point[1] - pivot[1])) +
+                       pivot[0]),
         y = Math.round((Math.sin(angle) * (point[0] - pivot[0])) +
-             (Math.cos(angle) * (point[1] - pivot[1])) +
-             pivot[1]);
+                       (Math.cos(angle) * (point[1] - pivot[1])) +
+                       pivot[1]);
     return [x, y];
   };
 
@@ -234,7 +234,7 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   function color(string) {
-    /*jshint boss:true*/
+    /*jshint boss:true, validthis: true*/
     var matches,
         self = (this && this.constructor === color) ? this :
         Object.create(color.prototype);
