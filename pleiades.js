@@ -575,11 +575,13 @@ var pl = {debug: false};
     constructor: function() {
       this._offset = [0, 0];
     },
+
     _translatePoint: function(point) {
       var x = Math.round(this._offset[0] + point[0]),
           y = Math.round(this._offset[1] + point[1]);
       return [x, y];
     },
+
     rect: function(x, y, w, h, attr) {
       this.polyline(
         [[x, y],
@@ -587,6 +589,92 @@ var pl = {debug: false};
          [x + w, y + h],
          [x, y + h]],
         attr);
+    },
+
+    circle: function() {},
+
+    finalize: function() {}
+
+  });
+
+  // ---------------------------------------------------------------------------
+
+  pl.LayerBrush = pl.Brush.subclass({
+    constructor: function() {
+      this.hashmap = [];
+    },
+
+    updateSlaveBrush: function() {
+      this.slaveBrush._offset = this._offset;
+      this.slaveBrush.mask = this.mask;
+      this.slaveBrush.canvas = this.canvas;
+      this.slaveBrush.paper = this.paper;
+    },
+
+    init: function() {
+      this.updateSlaveBrush();
+      this.slaveBrush.init();
+    },
+
+    reset: function() {
+      this.updateSlaveBrush();
+      this.slaveBrush.reset();
+    },
+
+    polyline: function(points, attributes, commandObject) {
+      var foundRow;
+      this.hashmap.some(function(row) {
+        if (row[0] === commandObject) {
+          row.push(points);
+          foundRow = row;
+          return true;
+        }});
+      if (foundRow) {
+        return;
+      } else {
+        this.hashmap.push(
+          [commandObject,
+           'polyline',
+           attributes,
+           points]
+        );
+      }
+    },
+
+    circle: function(point, radius, attributes, commandObject) {
+      var foundRow;
+      this.hashmap.some(function(row) {
+        if (row[0] === commandObject) {
+          row.push([point, radius]);
+          foundRow = row;
+          return true;
+        }});
+      if (foundRow) {
+        return;
+      } else {
+        this.hashmap.push(
+          [commandObject,
+           'circle',
+           attributes,
+           [point, radius]]
+        );
+      }
+    },
+
+    finalize: function() {
+      var self = this;
+      this.updateSlaveBrush();
+      this.hashmap.forEach(function(elem) {
+        if (elem[1] === 'polyline') {
+          elem.slice(3).forEach(function(points) {
+            self.slaveBrush.polyline(points, elem[2]);
+          });
+        } else if (elem[1] === 'circle') {
+          elem.slice(3).forEach(function(spec) {
+            self.slaveBrush.circle(spec[0], spec[1], elem[2]);
+          });
+        }
+      });
     }
   });
 
@@ -853,6 +941,7 @@ var pl = {debug: false};
       this.zoom = 4;
       this.angleRotation = 0;
     },
+
     // up, right, down, left
     directions: Object.freeze(['forward', 'right', 'back', 'left']),
     reset: function() {
@@ -892,26 +981,24 @@ var pl = {debug: false};
     },
 
     untranslatePoint: function(point) {
-      var x = Math.round((point[0] - this._offset[0]) // / this.zoom
-                        ),
-          y = Math.round((point[1] - this._offset[1]) // / this.zoom
-                        );
+      var x = Math.round((point[0] - this._offset[0])),
+          y = Math.round((point[1] - this._offset[1]));
       return [x, y];
     },
 
-    line: function(length, direction, style) {
+    line: function(length, direction, style, commandObject) {
       var oldPoint = this.point.slice(0);
       this.move(length, direction);
       var points = [oldPoint, this.point];
-      this.brush.polyline(points, style);
+      this.brush.polyline(points, style, commandObject);
     },
 
-    circle: function(radius, style) {
+    circle: function(radius, style, commandObject) {
       var adjRadius = radius * this.zoom;
-      this.brush.circle(this.point, adjRadius, style);
+      this.brush.circle(this.point, adjRadius, style, commandObject);
     },
 
-    rect: function(width, height, style) {
+    rect: function(width, height, style, commandObject) {
       // this.brush.rect()
       var pointLB = this.point.slice(0),
           pointRB = this.directionTranslate(pointLB, width, 'right'),
@@ -923,12 +1010,13 @@ var pl = {debug: false};
             pointRT,
             pointLT
           ];
-      this.brush.polyline(allPoints, style);
+      this.brush.polyline(allPoints, style, commandObject);
       this.point = allPoints[2];
     },
 
     move: function(length, direction) {
-      if ( ['forward', 'right', 'back', 'left'].indexOf(direction) === -1)
+      if ( ['forward', 'right', 'back', 'left']
+           .indexOf(direction) === -1)
       {
         throw new Error('Illegal direction: ' + direction);
       }
@@ -980,15 +1068,20 @@ var pl = {debug: false};
           } else {
             if ( ! (self.brush instanceof pl.Compass &&
                     stamp.dontMeasure)) {
-              self[stamp[0]].apply(self, stamp.slice(1));
+              self[stamp[0]].apply(self, stamp.slice(1).concat([stamp]));
             }}});
+    },
+
+    setBackground: function(color) {
+      document.documentElement.style.background = color;
     },
 
     drawComposition: function(composition) {
       var self = this,
           windowCenter = [
             window.innerWidth / 2,
-            window.innerHeight / 2 ];
+            window.innerHeight / 2
+          ];
 
       this.reset();
       this.measure(composition);
@@ -996,8 +1089,8 @@ var pl = {debug: false};
       // No offset
       var outerRect = this.compass.getOuterRect();
       var imageCenter = [
-        (outerRect[0] + outerRect[2] / 2),
-        (outerRect[1] + outerRect[3] / 2)
+        outerRect[0] + outerRect[2] / 2,
+        outerRect[1] + outerRect[3] / 2
       ];
       this._offset = [
         Math.round(windowCenter[0] - imageCenter[0]),
@@ -1057,18 +1150,7 @@ var pl = {debug: false};
           {'stroke-width': 4,
            'stroke': 'blue'});
       }
-      (function() {
-        // if ([pl.CanvasBrush, pl.RaphaelBrush]
-        //     .indexOf(self.brush.constructor) === -1)
-        // {
-        //   return;
-        // }
-        if (self.brush.constructor == pl.CanvasBrush &&
-            ! self.brush.canvas.parentNode) {
-          return;
-        }
-        document.documentElement.style.background = composition.background;
-      }());
+      this.setBackground(composition.background);
 
       this._walker(composition);
       if (pl.debug) {
@@ -1081,6 +1163,7 @@ var pl = {debug: false};
            'stroke': 'red'}
         );
       }
+      this.brush.finalize();
       return true;
     }
 
@@ -1091,11 +1174,15 @@ var pl = {debug: false};
   pl.painterFactory = {
     make: function(attributes) {
       var painter = new pl.Painter();
+      var brush;
       if (attributes.type === 'svg') {
-        painter.brush = new pl.RaphaelBrush();
+        brush = new pl.RaphaelBrush();
       } else {
-        painter.brush = new pl.CanvasBrush();
+        brush = new pl.CanvasBrush();
       }
+      painter.brush = new pl.LayerBrush({
+        slaveBrush: brush
+      });
       delete attributes.type;
       if (attributes) {
         extend(painter.brush, attributes.brushAttributes);

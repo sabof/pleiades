@@ -94,6 +94,7 @@ function init(type) {
                new pl.RaphaelBrush() :
                new pl.CanvasBrush()),
       compass = new pl.Compass();
+  brush = new pl.LayerBrush({slaveBrush: brush});
   brush.canvas = document.getElementById('pleiades-canvas');
   brush.init();
   stampFactory.init();
