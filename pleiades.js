@@ -474,8 +474,8 @@ var pl = {debug: false};
   pl.ColorThemeFactory = makeClass({
     make: function(themeName) {
       var proto = this.themes[
-        themeName || random({bluePrint: pl.debug ? 0 : 1,
-                             blackNeon: pl.debug ? 0 : 3,
+        themeName || random({bluePrint: 0,
+                             blackNeon: 3,
                              papyrus: 6})
       ];
       var theme = Object.create(proto);
