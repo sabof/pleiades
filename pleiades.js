@@ -104,12 +104,12 @@ var pl = {debug: false};
 
   var rotatePoint = function(pivot, point, angle) {
     // Rotate clockwise, angle in radians
-    var x = ((Math.cos(angle) * (point[0] - pivot[0])) -
-             (Math.sin(angle) * (point[1] - pivot[1])) +
-             pivot[0]),
-        y = ((Math.sin(angle) * (point[0] - pivot[0])) +
-             (Math.cos(angle) * (point[1] - pivot[1])) +
-             pivot[1]);
+    var x = Math.round((Math.cos(angle) * (point[0] - pivot[0])) -
+                       (Math.sin(angle) * (point[1] - pivot[1])) +
+                       pivot[0]),
+        y = Math.round((Math.sin(angle) * (point[0] - pivot[0])) +
+                       (Math.cos(angle) * (point[1] - pivot[1])) +
+                       pivot[1]);
     return [x, y];
   };
 
@@ -174,6 +174,34 @@ var pl = {debug: false};
     return original;
   };
 
+  var makeClass = function(args) {
+    var constructor = args.constructor;
+    delete args.constructor;
+    var C = function(props) {
+      if (constructor) {
+        constructor.call(this, props);
+      }
+      extend(this, props);
+    };
+
+    if (typeof args.parent === 'object') {
+      C.prototype = Object.create(args.parent);
+      C.prototype.constructor = C;
+    } else if (typeof args.parent === 'function') {
+      C.prototype = Object.create(new args.parent());
+      C.prototype.constructor = C;
+    }
+    delete args.parent;
+
+    C.subclass = function(args) {
+      args.parent = C;
+      return makeClass(args);
+    };
+
+    extend(C.prototype, args);
+    return C;
+  };
+
   var wrap = function(oriFunc, wrapFunc) {
     var resultFunc = function() {
       var self = this;
@@ -206,10 +234,10 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   function color(string) {
-    /*jshint boss:true*/
+    /*jshint boss:true, validthis: true*/
     var matches,
-        self = (this === undefined || this === window) ?
-        Object.create(color.prototype) : this;
+        self = (this && this.constructor === color) ? this :
+        Object.create(color.prototype);
     if (matches = string.match(/rgba\((\d+), ?(\d+), ?(\d+), ?(\d+)\)/i)) {
       self.channels = matches.slice(1, 4).map(function(num) {
         return parseInt(num, 10);
@@ -326,6 +354,8 @@ var pl = {debug: false};
     // Inclusive, exclusive
     random: random,
 
+    makeClass: makeClass,
+
     color: color,
 
     rotateArray: rotateArray,
@@ -367,11 +397,8 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorTheme = function() {};
-
-  pl.ColorTheme.prototype = {
+  pl.ColorTheme = makeClass({
     init: function() {},
-    constructor: pl.ColorTheme,
 
     // Colors
 
@@ -440,19 +467,15 @@ var pl = {debug: false};
           .toString()
       };
     }
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.ColorThemeFactory = function() {
-    // this.make = this.make.bind(this, 'bluePrint');
-  };
-
-  pl.ColorThemeFactory.prototype = {
+  pl.ColorThemeFactory = makeClass({
     make: function(themeName) {
       var proto = this.themes[
-        themeName || random({bluePrint: pl.debug ? 0 : 1,
-                             blackNeon: pl.debug ? 0 : 3,
+        themeName || random({bluePrint: 0,
+                             blackNeon: 3,
                              papyrus: 6})
       ];
       var theme = Object.create(proto);
@@ -544,15 +567,14 @@ var pl = {debug: false};
           gradient: '#003355'
         })
     }
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.Brush = function() {
-    this._offset = [0, 0];
-  };
-
-  pl.Brush.prototype = {
+  pl.Brush = makeClass({
+    constructor: function() {
+      this._offset = [0, 0];
+    },
     _translatePoint: function(point) {
       var x = Math.round(this._offset[0] + point[0]),
           y = Math.round(this._offset[1] + point[1]);
@@ -566,285 +588,271 @@ var pl = {debug: false};
          [x, y + h]],
         attr);
     }
-
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.RaphaelBrush = function(properties) {
-    this.mask = [0, 0, 0, 0];
-    this.paper = null;
-    this._offset = [0, 0];
-    extend(this, properties);
-  };
+  pl.RaphaelBrush = pl.Brush.subclass({
+    constructor: function() {
+      this.mask = [0, 0, 0, 0];
+      this.paper = null;
+      this._offset = [0, 0];
+    },
 
-  pl.RaphaelBrush.prototype = extend(
-    new pl.Brush(), {
-      constructor: pl.RaphaelBrush,
+    init: function() {
+      this.paper = new Raphael(
+        0, 0,
+        window.innerWidth,
+        window.innerHeight
+      );
+      this.init = ignore;
+    },
 
-      init: function() {
-        this.paper = new Raphael(
-          0, 0,
-          window.innerWidth,
-          window.innerHeight
-        );
-        this.init = ignore;
-      },
+    reset: function() {
+      this.paper.clear();
+      this.paper.setSize(
+        window.innerWidth,
+        window.innerHeight
+      );
+    },
 
-      reset: function() {
-        this.paper.clear();
-        this.paper.setSize(
-          window.innerWidth,
-          window.innerHeight
-        );
-      },
+    translateAttributes: function(attributes) {
+      var attr = extend({}, attributes);
+      switch (attr['stroke-style']) {
+      case 'dotted':
+        attr['stroke-dasharray'] = '.';
+        break;
+      case 'dashed':
+        attr['stroke-dasharray'] = '-';
+        break;
+      }
+      if (attr.fill instanceof Array) {
+        attr.fill = '45-' +
+          attr.fill[0] + ':5-' +
+          attr.fill[1] + ':95';
+      }
+      delete attr['stroke-style'];
+      return attr;
+    },
 
-      translateAttributes: function(attributes) {
-        var attr = extend({}, attributes);
-        switch (attr['stroke-style']) {
+    polyline: function(points, attributes) {
+      if (rectanglesOverlap(this.mask,
+                            pointsToRect.apply(null, points)))
+      {
+        var adjPoints = points.map(this._translatePoint, this),
+            pathString = 'M'.concat(adjPoints.map(function(pair) {
+              return pair[0] + ' ' + pair[1];
+            }).join('L'), 'Z');
+        this.paper.path(pathString)
+          .attr(this.translateAttributes(attributes));
+      }
+    },
+
+    circle: function(point, radius, attributes) {
+      var rect = [
+        point[0] - radius,
+        point[1] - radius,
+        radius * 2,
+        radius * 2
+      ];
+      // The mask is unadjusted
+      if (rectanglesOverlap(rect, this.mask)) {
+        var adjPoint = this._translatePoint(point);
+        this.paper.circle(adjPoint[0], adjPoint[1], radius)
+          .attr(this.translateAttributes(attributes));
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+
+  pl.CanvasBrush = pl.Brush.subclass({
+    constructor: function() {
+      this.canvas = null;
+    },
+
+    init: function() {
+      this.context = this.canvas.getContext('2d');
+    },
+
+    applyStyle: function(attributes, rect) {
+      /*jshint sub:true*/
+      var ctx = this.context;
+      ctx.save();
+      if (attributes['stroke-width']) {
+        ctx.lineWidth = attributes['stroke-width'];
+      }
+      if (ctx.setLineDash) {
+        switch (attributes['stroke-style']) {
         case 'dotted':
-          attr['stroke-dasharray'] = '.';
+          ctx.setLineDash([2]);
           break;
         case 'dashed':
-          attr['stroke-dasharray'] = '-';
+          ctx.setLineDash([10, 4]);
           break;
         }
-        if (attr.fill instanceof Array) {
-          attr.fill = '45-' +
-            attr.fill[0] + ':5-' +
-            attr.fill[1] + ':95';
-        }
-        delete attr['stroke-style'];
-        return attr;
-      },
-
-      polyline: function(points, attributes) {
-        if (rectanglesOverlap(this.mask,
-                              pointsToRect.apply(null, points)))
-        {
-          var adjPoints = points.map(this._translatePoint, this),
-              pathString = 'M'.concat(adjPoints.map(function(pair) {
-                return pair[0] + ' ' + pair[1];
-              }).join('L'), 'Z');
-          this.paper.path(pathString)
-            .attr(this.translateAttributes(attributes));
-        }
-      },
-
-      circle: function(point, radius, attributes) {
-        var rect = [
-          point[0] - radius,
-          point[1] - radius,
-          radius * 2,
-          radius * 2
-        ];
-        // The mask is unadjusted
-        if (rectanglesOverlap(rect, this.mask)) {
-          var adjPoint = this._translatePoint(point);
-          this.paper.circle(adjPoint[0], adjPoint[1], radius)
-            .attr(this.translateAttributes(attributes));
-        }
       }
-    });
+      if (attributes['fill']) {
+        if (attributes['fill'] instanceof Array) {
+          var grd = ctx.createLinearGradient(
+            rect[0],
+            rect[1],
+            rect[2] + rect[0],
+            rect[3] + rect[1]
+          );
+          grd.addColorStop(0, attributes['fill'][0]);
+          grd.addColorStop(1, attributes['fill'][1]);
+          this.context.fillStyle = grd;
+        } else {
+          this.context.fillStyle = attributes['fill'];
+        }
+        ctx.fill();
+      }
+      if (attributes['stroke'] &&
+          attributes['stroke-width'] !== 0) {
+        this.context.strokeStyle = attributes['stroke'];
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+
+    reset: function() {
+      this.canvas.width = window.innerWidth;
+      this.canvas.height = window.innerHeight;
+      // Unnecessary?
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // this.context.fillStyle = '#FF0000';
+      this.context.strokeStyle = '#0000FF';
+      this.context.lineWidth = 3;
+    },
+
+    polyline: function(points, attributes) {
+      var ctx = this.context,
+          adjPoints = points.map(this._translatePoint, this);
+      ctx.beginPath();
+      ctx.moveTo.apply(ctx, adjPoints[0]);
+
+      adjPoints.slice(1).forEach(function(point) {
+        ctx.lineTo.apply(ctx, point);
+      });
+      if (adjPoints.length > 2) {
+        ctx.closePath();
+      }
+      this.applyStyle(attributes, pointsToRect.apply(null, adjPoints));
+    },
+
+    circle: function(point, radius, attributes) {
+      var adjPoint = this._translatePoint(point),
+          ctx = this.context;
+      function circleRect() {
+        var pointTL = adjPoint.slice(0),
+            pointBR = adjPoint.slice(0);
+        pointTL[0] -= radius;
+        pointTL[1] -= radius;
+        pointBR[0] += radius;
+        pointBR[1] += radius;
+        return pointsToRect(pointTL, pointBR);
+      }
+      ctx.beginPath();
+      ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
+      this.applyStyle(attributes, circleRect());
+    }
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.CanvasBrush = function(properties) {
-    this.canvas = null;
-    extend(this, properties);
-  };
+  pl.Compass = pl.Brush.subclass({
+    constructor: function() {
+      this._objectRects = [];
+      this._outerBoundaries = undefined;
+    },
+    reset: function() {
+      this._outerBoundaries = undefined;
+      this._objectRects = [];
+    },
 
-  pl.CanvasBrush.prototype = extend(
-    new pl.Brush(), {
-      constructor: pl.CanvasBrush,
+    trackIt: function(rect) {
+      var self = this;
+      function adjustOuterBoundaries(point) {
+        var x = point[0],
+            y = point[1];
 
-      init: function() {
-        this.context = this.canvas.getContext('2d');
-      },
-
-      applyStyle: function(attributes, rect) {
-        /*jshint sub:true*/
-        var ctx = this.context;
-        ctx.save();
-        if (attributes['stroke-width']) {
-          ctx.lineWidth = attributes['stroke-width'];
+        if ( ! self._outerBoundaries) {
+          self._outerBoundaries = [x, y, x, y];
+        } else {
+          self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
+          self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
+          self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
+          self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
         }
-        if (ctx.setLineDash) {
-          switch (attributes['stroke-style']) {
-          case 'dotted':
-            ctx.setLineDash([2]);
-            break;
-          case 'dashed':
-            ctx.setLineDash([10, 4]);
-            break;
-          }
-        }
-        if (attributes['fill']) {
-          if (attributes['fill'] instanceof Array) {
-            var grd = ctx.createLinearGradient(
-              rect[0],
-              rect[1],
-              rect[2] + rect[0],
-              rect[3] + rect[1]
-            );
-            grd.addColorStop(0, attributes['fill'][0]);
-            grd.addColorStop(1, attributes['fill'][1]);
-            this.context.fillStyle = grd;
-          } else {
-            this.context.fillStyle = attributes['fill'];
-          }
-          ctx.fill();
-        }
-        if (attributes['stroke'] &&
-            attributes['stroke-width'] !== 0) {
-          this.context.strokeStyle = attributes['stroke'];
-          ctx.stroke();
-        }
-        ctx.restore();
-      },
-
-      reset: function() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        // Unnecessary?
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        // this.context.fillStyle = '#FF0000';
-        this.context.strokeStyle = '#0000FF';
-        this.context.lineWidth = 3;
-      },
-
-      polyline: function(points, attributes) {
-        var ctx = this.context,
-            adjPoints = points.map(this._translatePoint, this);
-        ctx.beginPath();
-        ctx.moveTo.apply(ctx, adjPoints[0]);
-
-        adjPoints.slice(1).forEach(function(point) {
-          ctx.lineTo.apply(ctx, point);
-        });
-        if (adjPoints.length > 2) {
-          ctx.closePath();
-        }
-        this.applyStyle(attributes, pointsToRect.apply(null, adjPoints));
-      },
-
-      circle: function(point, radius, attributes) {
-        var adjPoint = this._translatePoint(point),
-            ctx = this.context;
-        function circleRect() {
-          var pointTL = adjPoint.slice(0),
-              pointBR = adjPoint.slice(0);
-          pointTL[0] -= radius;
-          pointTL[1] -= radius;
-          pointBR[0] += radius;
-          pointBR[1] += radius;
-          return pointsToRect(pointTL, pointBR);
-        }
-        ctx.beginPath();
-        ctx.arc(adjPoint[0], adjPoint[1], radius, 0, 2 * Math.PI, false);
-        this.applyStyle(attributes, circleRect());
       }
-    });
+
+      if (rect.length < 2) {
+        throw new Error(
+          'Wrong number of members: ' +
+            rect.length);
+      }
+      if ( ! rect.every(function(num) {
+        return typeof num === 'number' && ! isNaN(num); }))
+      { throw new Error(
+        'Some members are not numbers: ' +
+          JSON.stringify(rect));
+      }
+
+      this._objectRects.push(rect);
+
+      adjustOuterBoundaries([rect[0], rect[1]]);
+      if (rect.length === 4) {
+        adjustOuterBoundaries([rect[0] + rect[2],
+                               rect[1] + rect[3]]);
+      }
+    },
+
+    getOuterRect: function(adjusted) {
+      if ( ! this._outerBoundaries) {
+        throw new Error('Boundaries not calculated');
+      }
+      var ob = this._outerBoundaries,
+          points = [this._outerBoundaries.slice(0, 2),
+                    this._outerBoundaries.slice(2, 4)];
+      // if (adjusted) {
+      //   points = points.map(function(point) {
+      //     return [point[0] + this._offset[0],
+      //             point[1] + this._offset[1]];
+      //   },
+      //                       this);
+      // }
+      return points[0].concat(
+        [points[1][0] - points[0][0],
+         points[1][1] - points[0][1]]
+      );
+    },
+
+    polyline: function(points) {
+      var rectPoints = pointsToRect.apply(null, points);
+      this.trackIt(rectPoints);
+    },
+
+    circle: function(point, radius) {
+      this.trackIt([
+        point[0] - radius,
+        point[1] - radius,
+        radius * 2,
+        radius * 2
+      ]);
+    }
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.Compass = function() {
-    this._objectRects = [];
-    this._outerBoundaries = undefined;
-  };
-
-  pl.Compass.prototype = extend(
-    new pl.Brush(), {
-      reset: function() {
-        this._outerBoundaries = undefined;
-        this._objectRects = [];
-      },
-
-      trackIt: function(rect) {
-        var self = this;
-        function adjustOuterBoundaries(point) {
-          var x = point[0],
-              y = point[1];
-
-          if ( ! self._outerBoundaries) {
-            self._outerBoundaries = [x, y, x, y];
-          } else {
-            self._outerBoundaries[0] = Math.min(self._outerBoundaries[0], x);
-            self._outerBoundaries[1] = Math.min(self._outerBoundaries[1], y);
-            self._outerBoundaries[2] = Math.max(self._outerBoundaries[2], x);
-            self._outerBoundaries[3] = Math.max(self._outerBoundaries[3], y);
-          }
-        }
-
-        if (rect.length < 2) {
-          throw new Error(
-            'Wrong number of members: ' +
-              rect.length);
-        }
-        if ( ! rect.every(function(num) {
-          return typeof num === 'number' && ! isNaN(num); }))
-        { throw new Error(
-          'Some members are not numbers: ' +
-            JSON.stringify(rect));
-        }
-
-        this._objectRects.push(rect);
-
-        adjustOuterBoundaries([rect[0], rect[1]]);
-        if (rect.length === 4) {
-          adjustOuterBoundaries([rect[0] + rect[2],
-                                 rect[1] + rect[3]]);
-        }
-      },
-
-      getOuterRect: function(adjusted) {
-        if ( ! this._outerBoundaries) {
-          throw new Error('Boundaries not calculated');
-        }
-        var ob = this._outerBoundaries,
-            points = [this._outerBoundaries.slice(0, 2),
-                      this._outerBoundaries.slice(2, 4)];
-        // if (adjusted) {
-        //   points = points.map(function(point) {
-        //     return [point[0] + this._offset[0],
-        //             point[1] + this._offset[1]];
-        //   },
-        //                       this);
-        // }
-        return points[0].concat(
-          [points[1][0] - points[0][0],
-           points[1][1] - points[0][1]]
-        );
-      },
-
-      polyline: function(points) {
-        var rectPoints = pointsToRect.apply(null, points);
-        this.trackIt(rectPoints);
-      },
-
-      circle: function(point, radius) {
-        this.trackIt([
-          point[0] - radius,
-          point[1] - radius,
-          radius * 2,
-          radius * 2
-        ]);
-      }
-    });
-
-  // ---------------------------------------------------------------------------
-
-  pl.Painter = function(properties) {
-    // this.compass = new pl.Compass();
-    this.point = [0, 0];
-    this._offset = [0, 0];
-    this.zoom = 4;
-    this.angleRotation = 0;
-    extend(this, properties);
-  };
-
-  pl.Painter.prototype = {
-    constructor: pl.Painter,
+  pl.Painter = makeClass({
+    constructor: function(properties) {
+      // this.compass = new pl.Compass();
+      this.point = [0, 0];
+      this._offset = [0, 0];
+      this.zoom = 4;
+      this.angleRotation = 0;
+    },
     // up, right, down, left
     directions: Object.freeze(['forward', 'right', 'back', 'left']),
     reset: function() {
@@ -1049,8 +1057,19 @@ var pl = {debug: false};
           {'stroke-width': 4,
            'stroke': 'blue'});
       }
+      (function() {
+        // if ([pl.CanvasBrush, pl.RaphaelBrush]
+        //     .indexOf(self.brush.constructor) === -1)
+        // {
+        //   return;
+        // }
+        if (self.brush.constructor == pl.CanvasBrush &&
+            ! self.brush.canvas.parentNode) {
+          return;
+        }
+        document.documentElement.style.background = composition.background;
+      }());
 
-      document.documentElement.style.background = composition.background;
       this._walker(composition);
       if (pl.debug) {
         this.brush.rect(
@@ -1065,7 +1084,7 @@ var pl = {debug: false};
       return true;
     }
 
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
@@ -1107,11 +1126,7 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
-  pl.StampFactory = function(properties) {
-    extend(this, properties);
-  };
-
-  pl.StampFactory.prototype = {
+  pl.StampFactory = makeClass({
     reset: function() {
       var iterator = makeLooper(rotateArray(['dotted', 'none', 'dashed', 'none'],
                                             random(4)));
@@ -1307,18 +1322,15 @@ var pl = {debug: false};
                    [left, up, right, up] ]; }
       }
     }
-  };
+  });
 
   // ---------------------------------------------------------------------------
 
-  pl.CompositionFactory = function(properties) {
-    this.depth = 5;
-    this.sequenceLength = 15;
-    extend(this, properties);
-  };
-
-  pl.CompositionFactory.prototype = {
-    constructor: pl.CompositionFactory,
+  pl.CompositionFactory = makeClass({
+    constructor: function(properties) {
+      this.depth = 5;
+      this.sequenceLength = 15;
+    },
 
     maybeRange: function(thing) {
       if (thing instanceof Array) {
@@ -1408,15 +1420,11 @@ var pl = {debug: false};
                      length: 1,
                      background: colorTheme.background()});
     }
-  };
+  });
 
   // -----------------------------------------------------------------------------
 
-  pl.Previewer = function(properties) {
-    extend(this, properties);
-  };
-
-  pl.Previewer.prototype = {
+  pl.Previewer = makeClass({
     stampFactory: null,
     beforeStepHook: constantly(false),
     afterStepHook: constantly(false),
@@ -1482,5 +1490,5 @@ var pl = {debug: false};
         this.init();
       }
     }
-  };
+  });
 }());

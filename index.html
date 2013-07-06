@@ -63,9 +63,14 @@ function initUI() {
 
   document.getElementById('ticket')
     .addEventListener('blur', function() {
-      previewer.paused = false;
+      // For Firefox
+      setTimeout(
+        function() {
+          if (document.hasFocus()) {
+            previewer.paused = false;
+          }},
+        0);
     });
-
   document.getElementById('ticket')
     .addEventListener('keypress', function(e) {
       if (!e) e = window.event;
@@ -94,9 +99,11 @@ function init(type) {
   stampFactory.init();
   previewer = new pl.Previewer({
     colorThemeFactory: colorThemeFactory,
-    painter: new pl.Painter({zoom: 4,
-                             brush: brush,
-                             compass: compass}),
+    painter: new pl.Painter({
+      zoom: 4,
+      brush: brush,
+      compass: compass
+    }),
     loopInterval: 5,
     // beforeStepHook: function() {
     // var ticketInput = document.getElementById('ticket');
