@@ -194,18 +194,8 @@ var pl = {debug: false};
     delete args.parent;
 
     C.subclass = function(args) {
-      var constructor = args.constructor;
-      delete args.constructor;
-      function C2(props) {
-        if (constructor) {
-          constructor.call(this, props);
-        }
-        extend(this, props);
-      }
-      C2.prototype = new C();
-      C2.prototype.constructor = C;
-      extend(C2.prototype, args);
-      return C2;
+      args.parent = C;
+      return makeClass(args);
     };
 
     extend(C.prototype, args);
