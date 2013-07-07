@@ -105,14 +105,14 @@ var pl = {debug: false};
   var getRandomPicture = (function() {
     var perPage = 10,
         apiKey = 'ac6d4ba1e8c5ab491d534b480c830c37',
-        tag = 'nature',
+        tag = 'factory' || 'world' || 'microscope' || 'nasa' || 'tree,branch' || 'blur,focus' || 'nature',
         currentPage = random(1, 100),
         cache;
     function getNewBatch() {
       var result,
           url = (
             'http://api.flickr.com/services/rest/?format=json' +
-              '&sort=random' +
+              '&sort=interestingness-desc' +
               '&method=flickr.photos.search' +
               '&tags=' + tag +
               '&tag_mode=all' +
@@ -127,6 +127,31 @@ var pl = {debug: false};
         result = result.substring(14, result.length - 1);
         result = JSON.parse(result);
         result = result.photos.photo;
+        result = result.filter(function(obj) {
+          var result,
+              url = (
+                'http://api.flickr.com/services/rest/?format=json' +
+                  '&api_key=' + apiKey +
+                  '&method=flickr.photos.getSizes' +
+                  '&photo_id=' + obj.id
+              );
+          var req = new XMLHttpRequest();
+          req.open('GET', url, false);
+          req.send(null);
+          if (req.status == 200) {
+            result = req.responseText;
+            result = result.substring(14, result.length - 1);
+            result = JSON.parse(result);
+            result = result.sizes.size;
+            return result.some(function(size) {
+              var result = size.label === 'Large';
+              // console.log(result);
+              return result;
+            });
+            // console.log(result);
+          }
+          // return true;
+        });
         result = result.map(function(obj) {
           return 'http://farm' + obj.farm +
             '.staticflickr.com/' + obj.server +
@@ -136,11 +161,12 @@ var pl = {debug: false};
         }); }
       currentPage += 5;
       cache = result;
+
       cache.forEach(function(url) {
         var pi = new Image();
         pi.src = url;
       });
-      console.log(currentPage);
+      console.log(cache.length);
     }
 
     return function() {
