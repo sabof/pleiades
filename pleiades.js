@@ -102,6 +102,56 @@ var pl = {debug: false};
     return array;
   };
 
+  var getRandomPicture = (function() {
+    var perPage = 10,
+        apiKey = 'ac6d4ba1e8c5ab491d534b480c830c37',
+        tag = 'nature',
+        currentPage = random(1, 100),
+        cache;
+    function getNewBatch() {
+      var result,
+          url = (
+            'http://api.flickr.com/services/rest/?format=json' +
+              '&sort=random' +
+              '&method=flickr.photos.search' +
+              '&tags=' + tag +
+              '&tag_mode=all' +
+              '&api_key=' + apiKey +
+              '&per_page=' + perPage +
+              '&page=' + currentPage);
+      var req = new XMLHttpRequest();
+      req.open('GET', url, false);
+      req.send(null);
+      if (req.status == 200) {
+        result = req.responseText;
+        result = result.substring(14, result.length - 1);
+        result = JSON.parse(result);
+        result = result.photos.photo;
+        result = result.map(function(obj) {
+          return 'http://farm' + obj.farm +
+            '.staticflickr.com/' + obj.server +
+            '/' + obj.id +
+            '_' + obj.secret +
+            '_b.jpg';
+        }); }
+      currentPage += 5;
+      cache = result;
+      cache.forEach(function(url) {
+        var pi = new Image();
+        pi.src = url;
+      });
+      console.log(currentPage);
+    }
+
+    return function() {
+      if ( ! cache || ! cache.length) {
+        getNewBatch();
+      }
+      return 'url("' + cache.pop() + '")';
+    };
+
+  } ());
+
   var rotatePoint = function(pivot, point, angle) {
     // Rotate clockwise, angle in radians
     var x = Math.round((Math.cos(angle) * (point[0] - pivot[0])) -
@@ -475,7 +525,7 @@ var pl = {debug: false};
     make: function(themeName) {
       var proto = this.themes[
         themeName || random({bluePrint: 0,
-                             blackNeon: 3,
+                             blackNeon: 0, // 3
                              papyrus: 6})
       ];
       var theme = Object.create(proto);
@@ -504,7 +554,8 @@ var pl = {debug: false};
         return extend(
           new pl.ColorTheme(), {
             // Colors
-            background: '#C7C289',
+            background: getRandomPicture,
+            // '#C7C289',
             outline: '#000000',
             shadow: function() {
               return randomColor();
@@ -514,6 +565,15 @@ var pl = {debug: false};
               var oriColor = randomColor();
               return [color(oriColor).vary(50).toString(),
                       color(oriColor).vary(50).toString()];
+            },
+
+            highlightRect: function() {
+              return {
+                'stroke': this.outline(),
+                'fill': color(this.highlight())
+                  .alpha(0.5 + random() * 0.5)
+                  .toString()
+              };
             },
 
             // Styles
@@ -593,6 +653,8 @@ var pl = {debug: false};
 
     circle: function() {},
 
+    clear: function() {},
+
     finalize: function() {},
 
     setOffset: function(offset) {
@@ -613,26 +675,18 @@ var pl = {debug: false};
       this.hashmaps =[];
     },
 
-    updateSlaveBrush: function() {
-      // this.slaveBrush._offset = this._offset;
-      // this.slaveBrush.mask = this.mask;
-      // this.slaveBrush.canvas = this.canvas;
-      // this.slaveBrush.paper = this.paper;
-    },
-
     init: function() {
-      // this.updateSlaveBrush();
       this.slaveBrush.init();
     },
 
     reset: function() {
-      // this.updateSlaveBrush();
       // console.log('reset');
       this.hashmaps.push(this.hashmap);
-      if (this.hashmaps.length > 10) {
+      if (this.hashmaps.length > 1) {
         this.hashmaps.shift();
       }
       this.hashmap = [];
+      // console.log(this.hashmaps.length);
       this.slaveBrush.reset();
     },
 
@@ -682,7 +736,6 @@ var pl = {debug: false};
 
     finalize: function() {
       var self = this;
-      this.updateSlaveBrush();
       this.hashmaps.concat([this.hashmap])
         .forEach(function(map) {
           map.forEach(function(elem) {
@@ -724,12 +777,16 @@ var pl = {debug: false};
       this.init = ignore;
     },
 
-    reset: function() {
+    clear: function() {
       this.paper.clear();
       this.paper.setSize(
         window.innerWidth,
         window.innerHeight
       );
+    },
+
+    reset: function() {
+      this.clear();
     },
 
     translateAttributes: function(attributes) {
@@ -752,9 +809,7 @@ var pl = {debug: false};
     },
 
     polyline: function(points, attributes) {
-      if (rectanglesOverlap(this.mask,
-                            pointsToRect.apply(null, points)))
-      {
+      if (rectanglesOverlap(this.mask, pointsToRect.apply(null, points))) {
         var adjPoints = points.map(this._translatePoint, this),
             pathString = 'M'.concat(adjPoints.map(function(pair) {
               return pair[0] + ' ' + pair[1];
@@ -836,14 +891,14 @@ var pl = {debug: false};
       ctx.restore();
     },
 
-    reset: function() {
+    clear: function() {
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight;
-      // Unnecessary?
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      // this.context.fillStyle = '#FF0000';
-      // this.context.strokeStyle = '#0000FF';
-      // this.context.lineWidth = 3;
+    },
+
+    reset: function() {
+      this.clear();
     },
 
     polyline: function(points, attributes) {
@@ -1098,7 +1153,14 @@ var pl = {debug: false};
     },
 
     setBackground: function(color) {
-      document.documentElement.style.background = color;
+      // document.documentElement.style.background = color;
+      if (color.match(/^url/)) {
+        document.documentElement.style.backgroundImage = color;
+      } else {
+        document.documentElement.style.backgroundImage = '';
+        document.documentElement.style.backgroundColor = color;
+      }
+
     },
 
     drawComposition: function(composition) {
@@ -1323,7 +1385,7 @@ var pl = {debug: false};
 
     recipes: {
       rotate: {
-        probability: 200,
+        probability: 2000,
         maxLength: 0,
         func: function() {
           return ['rotate', !! random(2)];
