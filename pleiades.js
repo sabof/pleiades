@@ -610,22 +610,29 @@ var pl = {debug: false};
   pl.LayerBrush = pl.Brush.subclass({
     constructor: function() {
       this.hashmap = [];
+      this.hashmaps =[];
     },
 
     updateSlaveBrush: function() {
       // this.slaveBrush._offset = this._offset;
       // this.slaveBrush.mask = this.mask;
       // this.slaveBrush.canvas = this.canvas;
-      this.slaveBrush.paper = this.paper;
+      // this.slaveBrush.paper = this.paper;
     },
 
     init: function() {
-      this.updateSlaveBrush();
+      // this.updateSlaveBrush();
       this.slaveBrush.init();
     },
 
     reset: function() {
-      this.updateSlaveBrush();
+      // this.updateSlaveBrush();
+      // console.log('reset');
+      this.hashmaps.push(this.hashmap);
+      if (this.hashmaps.length > 10) {
+        this.hashmaps.shift();
+      }
+      this.hashmap = [];
       this.slaveBrush.reset();
     },
 
@@ -676,15 +683,18 @@ var pl = {debug: false};
     finalize: function() {
       var self = this;
       this.updateSlaveBrush();
-      this.hashmap.forEach(function(elem) {
-        if (elem[1] === 'polyline') {
-          elem.slice(3).forEach(function(points) {
-            self.slaveBrush.polyline(points, elem[2]);
-          });
-        } else if (elem[1] === 'circle') {
-          elem.slice(3).forEach(function(spec) {
-            self.slaveBrush.circle(spec[0], spec[1], elem[2]);
-          }); }});
+      this.hashmaps.concat([this.hashmap])
+        .forEach(function(map) {
+          map.forEach(function(elem) {
+            if (elem[1] === 'polyline') {
+              elem.slice(3).forEach(function(points) {
+                self.slaveBrush.polyline(points, elem[2]);
+              });
+            } else if (elem[1] === 'circle') {
+              elem.slice(3).forEach(function(spec) {
+                self.slaveBrush.circle(spec[0], spec[1], elem[2]);
+              }); }});
+        });
     },
 
     setOffset: function(offset) {
