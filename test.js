@@ -1,4 +1,5 @@
-/*global generator:true, composition:true, brush:true, pl, init, SeedRandom, describe, xdescribe, it, xit, expect, jasmine*/
+/*global generator:true, composition:true, brush:true, pl, init, SeedRandom */
+/*global describe, xdescribe, it, xit, expect, jasmine*/
 
 var plt = {};
 
@@ -7,10 +8,33 @@ pl.util.getRandomPicture = function() {
   return 'url("http://farm4.staticflickr.com/3110/2345360341_069598f072_b.jpg")';
 };
 
+function makeTestPainter() {
+  var painter = pl.painterFactory.make(
+    { brushAttributes: {canvas: document.createElement('canvas')} }
+  );
+  painter.setBackground = function() {};
+  return painter;
+}
+
+function makeTestCompositionFactory() {
+  return pl.compositionFactoryFactory.make();
+}
+
+function makeTestComposition() {
+  var composition = [
+    [['line', 30, 'back', {'stroke': 'black'}]],
+    [['rect', 30, -30, {'fill' : '#aa0044', 'stroke': 'black'}],
+     ['line', 10, 'right', {'stroke': 'black'}]]
+  ];
+  composition[0].push([4, composition[1]]);
+  composition = composition[0];
+  return composition;
+}
+
 // -----------------------------------------------------------------------------
 
 function test_directionTranslate() {
-  brush = pl.painterFactory.make();
+  brush = makeTestPainter();
   console.log(
     [brush.directionTranslate([0,0], 5, 'up'),
      brush.directionTranslate([0,0], 5, 'right'),
@@ -32,14 +56,14 @@ function test_zoomer() {
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
-  // brush = pl.painterFactory.make();
+  // brush = makeTestPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_angleRotator() {
   pl.debug = true;
-  var painter = pl.painterFactory.make();
+  var painter = makeTestPainter();
   // painter.angleRotation = Math.PI;
   painter.angleRotation = 0;
   painter.zoom = 4;
@@ -72,13 +96,13 @@ function test_zoomAlignement() {
   // composition[0].push([2, composition[1]]);
   composition = [[4, composition[0]]];
   // composition = composition[0];
-  // brush = pl.painterFactory.make();
+  // brush = makeTestPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_simpleRepeater() {
-  generator = new pl.CompositionFactory();
+  // generator = new pl.CompositionFactory();
   composition = [
     [['line', 30, 'back', {'stroke': 'black'}]],
     [['rect', 30, -30, {'fill' : '#aa0044', 'stroke': 'black'}],
@@ -86,7 +110,7 @@ function test_simpleRepeater() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  var painter = pl.painterFactory.make(
+  var painter = makeTestPainter(
     {zoom: 1,
      brushAttributes: {canvas: document.getElementById('pleiades-canvas')}});
   painter.init();
@@ -95,7 +119,7 @@ function test_simpleRepeater() {
 }
 
 function test_rotator() {
-  generator = pl.compositionFactoryFactory.make();
+  // generator = pl.compositionFactoryFactory.make();
   composition = [
     [['line', 30, 'down'],
      ['line', 30, 'right']],
@@ -107,13 +131,13 @@ function test_rotator() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = pl.painterFactory.make();
+  brush = makeTestPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function test_centerer() {
-  generator = pl.compositionFactoryFactory.make();
+  // generator = pl.compositionFactoryFactory.make();
   composition = [
     [],
     [['rect', 30, 30, {'fill' : '#aa0044'}],
@@ -121,13 +145,13 @@ function test_centerer() {
   ];
   composition[0].push([4, composition[1]]);
   composition = composition[0];
-  brush = pl.painterFactory.make();
+  brush = makeTestPainter();
   brush.init();
   brush.drawComposition(composition);
 }
 
 function fault_1316() {
-  SeedRandom.setState("B7PKeDvts66hCVEMaMzEA1JeWF1/c46d4t7u2G/h+FDR45i1k0F9w8+a3As2Z/1APa1tzkyJlqm0qJGLNQ8W4KYa1dbrSke8769NLzPBdfOKGKsjCFt5Od1Ztp+cdPWbQwUrT2yqHTCxzW77IYAn2oImMnJcEpCI5tskG+gAg0bC5cWFj0gEESmiVNct9GC7VWmsuQH+TnAfLqe4pV/Q9weSxiBhnvZ+3yX8+VNXfMhWKD8ThmYcy780wNmEl5W3RaONew16QsfJpGXk6bAsKkkxArJkcYfyIgZjFw5i/wp30xmU7IHSFVq+uqB2PvFqa+rn1Po4SzrwFJm9NxAePIxE");
+  // SeedRandom.setState("B7PKeDvts66hCVEMaMzEA1JeWF1/c46d4t7u2G/h+FDR45i1k0F9w8+a3As2Z/1APa1tzkyJlqm0qJGLNQ8W4KYa1dbrSke8769NLzPBdfOKGKsjCFt5Od1Ztp+cdPWbQwUrT2yqHTCxzW77IYAn2oImMnJcEpCI5tskG+gAg0bC5cWFj0gEESmiVNct9GC7VWmsuQH+TnAfLqe4pV/Q9weSxiBhnvZ+3yX8+VNXfMhWKD8ThmYcy780wNmEl5W3RaONew16QsfJpGXk6bAsKkkxArJkcYfyIgZjFw5i/wp30xmU7IHSFVq+uqB2PvFqa+rn1Po4SzrwFJm9NxAePIxE");
   var generator = (function () {
     var colorThemeFactory = new pl.ColorThemeFactory(),
         stampFactory = new pl.StampFactory(colorThemeFactory);
@@ -138,11 +162,10 @@ function fault_1316() {
       stampFactory: stampFactory,
       colorThemeFactory: colorThemeFactory
     });
-  }());
-  SeedRandom.seed('1316');
+  } ());
+  // SeedRandom.seed('1316');
   return generator.make();
 }
-
 
 plt.isStampValid = function(pattern) {
   if (typeof pattern === 'function') {
@@ -181,7 +204,7 @@ function test_simpleDrawing() {
   //   [['rect', 30, 30, {'fill' : '#aa0044'}],
   //    ['line', 10, 'right']]
   // ],
-  brush = pl.painterFactory.make();
+  brush = makeTestPainter();
   brush.init();
   brush.move(5, 'down');
   brush.move(5, 'right');
@@ -339,40 +362,40 @@ describe("CompositionFactory", function() {
 
 describe("Compass", function() {
   var compass = new pl.Compass(),
-      painter = new pl.Painter({brush: compass,
-                                compass: compass,
-                                zoom: 1}),
+      painter = makeTestPainter(),
       outerRect,
-      composition,
       result;
+  painter.zoom = 1;
+  painter.brush = painter.compass = compass;
 
   // ---------------------------------------------------------------------------
 
   it('When a line is drawn the boundaries shoudld be adjusted', function() {
     compass.reset();
     compass.polyline([[-5, -6], [0, 0]]);
-    outerRect = compass.getOuterRect();
+    var outerRect = compass.getOuterRect();
     expect(outerRect[0]).toEqual(-5);
     expect(outerRect[1]).toEqual(-6);
     expect(outerRect[2]).toEqual(5);
     expect(outerRect[3]).toEqual(6);
   });
 
-  compass.reset();
+  // ---------------------------------------------------------------------------
 
-  compass.rect(0, 0, 5, 6);
-  outerRect = compass.getOuterRect();
-  it('When a rectangle is drawn the boundaries shoudld be adjusted (result: ' +
-     JSON.stringify(outerRect) + ')').
-    expect(outerRect[0] === 0 &&
-           outerRect[1] === 0 &&
-           outerRect[2] === 5 &&
-           outerRect[3] === 6
-          ).toBeTruthy();
+  it('When a rectangle is drawn the boundaries shoudld be adjusted', function() {
+       compass.reset();
+       compass.rect(0, 0, 5, 6);
+       var outerRect = compass.getOuterRect();
+    expect(outerRect[0]).toEqual(0);
+    expect(outerRect[1]).toEqual(0);
+    expect(outerRect[2]).toEqual(5);
+    expect(outerRect[3]).toEqual(6);
+  });
+
   // ---------------------------------------------------------------------------
 
   it('shouldn\'t move the point', function() {
-    composition = [[4, [['rect', 5, -5]]]];
+    var composition = [[4, [['rect', 5, -5]]]];
     var oldPoint = painter.point;
     painter.measure(composition);
     expect(painter.point[0])
@@ -380,20 +403,22 @@ describe("Compass", function() {
     expect(painter.point[1])
       .toEqual(oldPoint[1]);
   });
+
   // ---------------------------------------------------------------------------
 
-  it('Outer rect should consist of numbers')
-    .expect(outerRect.every(function(boundary) {
-      var composition = [
-        ["line",5, "left", {"stroke-width":2}],
-        ["circle",8, {"stroke-width":0}]
-      ];
-      painter.reset();
-      painter.measure(composition);
-      outerRect = compass.getOuterRect();
+  it('Outer rect should consist of numbers', function() {
+    var composition = [
+      ["line",5, "left", {"stroke-width":2}],
+      ["circle",8, {"stroke-width":0}]
+    ];
+    painter.reset();
+    painter.measure(composition);
+    var outerRect = compass.getOuterRect();
+    expect(outerRect.every(function(boundary) {
       return (typeof boundary === 'number') &&
         ! isNaN(boundary);
     })).toBeTruthy();
+  });
 
   // ---------------------------------------------------------------------------
 
@@ -418,8 +443,9 @@ describe("Compass", function() {
 
   // ---------------------------------------------------------------------------
 
-  xit("shouldn't throw, or return false2", function() {
-    painter.measure(fault_1316());
+  it("shouldn't throw, or return false2", function() {
+    var generator = makeTestCompositionFactory();
+    painter.measure(generator.make());
     expect(compass._objectRects)
       .toBeTruthy();
   });
@@ -428,13 +454,10 @@ describe("Compass", function() {
 
 // -----------------------------------------------------------------------------
 
-xdescribe("Painter", function() {
+describe('Painter', function() {
   var result;
-  var painter = pl.painterFactory.make(
-    {brushAttributes: {canvas: document.createElement('canvas')}}
-  );
-  painter.setBackground = function() {};
-
+  var painter = makeTestPainter();
+  var composition = makeTestComposition();
   // painter.paper = new MockPaper();
   it("shouldn't throw, or return false1", function() {
     var result = false;
@@ -477,9 +500,25 @@ describe("angleRotation",  function() {
 
 describe('color', function() {
   // it()
-  it('should pass-throuh rgba(53, 107, 11, 1)')
-    .expect(pl.util.color('rgba(53, 107, 11, 1)').toString())
+  it('should pass-throuh rgba')
+    .expect(pl.util.color('rgba(53, 107, 11, 1)')
+            .toString())
     .toEqual('rgba(53, 107, 11, 1)');
+  it('should set alpha in rgba')
+    .expect(pl.util.color('rgba(53, 107, 11, 1)')
+            .alpha(0.5)
+            .toString())
+    .toEqual('rgba(53, 107, 11, 0.5)');
+  it('should convert rgb to rgba when alpha is set')
+    .expect(pl.util.color('rgb(53, 107, 11)')
+            .alpha(0.5)
+            .toString())
+    .toEqual('rgba(53, 107, 11, 0.5)');
+  it('should convert hex to rgba when alpha is set')
+    .expect(pl.util.color('#356B0B')
+            .alpha(0.5)
+            .toString())
+    .toEqual('rgba(53, 107, 11, 0.5)');
 });
 
 describe('makeClass', function() {

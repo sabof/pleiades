@@ -1292,6 +1292,7 @@ var pl = {debug: false};
           {'stroke-width': 4,
            'stroke': 'blue'});
       }
+
       this.setBackground(composition.background);
 
       this._walker(composition);
@@ -1327,7 +1328,11 @@ var pl = {debug: false};
         slaveBrush: brush
       });
       delete attributes.type;
-      if (attributes) {
+      if (attributes && attributes.brushAttributes) {
+        if (attributes.brushAttributes.canvas) {
+          brush.setCanvas(attributes.brushAttributes.canvas);
+          delete attributes.brushAttributes.canvas;
+        }
         extend(painter.brush, attributes.brushAttributes);
         delete attributes.brushAttributes;
       }
