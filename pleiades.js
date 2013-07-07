@@ -52,36 +52,42 @@ var pl = {debug: false};
 
 (function () {
   "use strict";
-  var random = function(min, max) {
-    if (min instanceof Array) {
-      return min[random(min.length)];
+  function makeRandom() {
+    var sRandom = new SeedRandom();
+    function random(min, max) {
+      if (min instanceof Array) {
+        return min[random(min.length)];
+      }
+      if (typeof min === 'object') {
+        var wheel = [];
+        Object.keys(min)
+          .forEach(function(key) {
+            for (var i = 0; i < min[key]; i++) {
+              wheel.push(key);
+            }});
+        return random(wheel); }
+      if (min === 'direction') {
+        return random(['forward', 'back', 'right', 'left']);
+      }
+      if (min === undefined &&
+          max === undefined) {
+        return sRandom.random();
+      }
+      if (min !== undefined &&
+          max === undefined) {
+        max = min;
+        min = 0;
+      }
+      return (
+        Math.floor(
+          sRandom.random() *
+            (max - min)) +
+          min);
     }
-    if (typeof min === 'object') {
-      var wheel = [];
-      Object.keys(min)
-        .forEach(function(key) {
-          for (var i = 0; i < min[key]; i++) {
-            wheel.push(key);
-          }});
-      return random(wheel); }
-    if (min === 'direction') {
-      return random(['forward', 'back', 'right', 'left']);
-    }
-    if (min === undefined &&
-        max === undefined) {
-      return SeedRandom.random();
-    }
-    if (min !== undefined &&
-        max === undefined) {
-      max = min;
-      min = 0;
-    }
-    return (
-      Math.floor(
-        SeedRandom.random() *
-          (max - min)) +
-        min);
-  };
+    return random;
+  }
+
+  var random = makeRandom();
 
   var rotateArray = function(array, ammount) {
     if (ammount === undefined) {
@@ -102,94 +108,9 @@ var pl = {debug: false};
     return array;
   };
 
-  var getRandomPicture = (function() {
-    var perPage = 10,
-        apiKey = '659840a613ce7186f3f6538bb740f563',
-        tag = (
-          'ethnic' ||
-            'perspective' ||
-            'light' ||
-            'bokeh' ||
-            'sepia' ||
-            // 'factory' ||
-            // 'world' ||
-            'microscope' ||
-            // 'nasa' ||
-            'tree,branch' ||
-            'blur' ||
-            'nature'
-        ),
-        currentPage = random(1, 100),
-        cache;
-    function getNewBatch() {
-      var result,
-          url = (
-            'http://api.flickr.com/services/rest/?format=json' +
-              '&sort=interestingness-desc' +
-              '&method=flickr.photos.search' +
-              '&tags=' + tag +
-              '&tag_mode=all' +
-              '&api_key=' + apiKey +
-              '&per_page=' + perPage +
-              '&page=' + currentPage);
-      var req = new XMLHttpRequest();
-      req.open('GET', url, false);
-      req.send(null);
-      if (req.status == 200) {
-        result = req.responseText;
-        result = result.substring(14, result.length - 1);
-        result = JSON.parse(result);
-        result = result.photos.photo;
-        result = result.filter(function(obj) {
-          var result,
-              url = (
-                'http://api.flickr.com/services/rest/?format=json' +
-                  '&api_key=' + apiKey +
-                  '&method=flickr.photos.getSizes' +
-                  '&photo_id=' + obj.id
-              );
-          var req = new XMLHttpRequest();
-          req.open('GET', url, false);
-          req.send(null);
-          if (req.status == 200) {
-            result = req.responseText;
-            result = result.substring(14, result.length - 1);
-            result = JSON.parse(result);
-            result = result.sizes.size;
-            return result.some(function(size) {
-              var result = size.label === 'Large';
-              // console.log(result);
-              return result;
-            });
-            // console.log(result);
-          }
-          // return true;
-        });
-        result = result.map(function(obj) {
-          return 'http://farm' + obj.farm +
-            '.staticflickr.com/' + obj.server +
-            '/' + obj.id +
-            '_' + obj.secret +
-            '_b.jpg';
-        }); }
-      currentPage += 5;
-      cache = result;
-
-      cache.forEach(function(url) {
-        var pi = new Image();
-        pi.src = url;
-      });
-      console.log(cache.length);
-    }
-
-    return function() {
-      if ( ! cache || ! cache.length) {
-        getNewBatch();
-      }
-      return 'url("' + cache.pop() + '")';
-    };
-
-  } ());
+  function getRandomPicture () {
+    return pl.util.getRandomPicture();
+  }
 
   var rotatePoint = function(pivot, point, angle) {
     // Rotate clockwise, angle in radians
@@ -452,6 +373,95 @@ var pl = {debug: false};
     extend: extend,
 
     constantly: constantly,
+
+    getRandomPicture: (function() {
+      var perPage = 10,
+          apiKey = '659840a613ce7186f3f6538bb740f563',
+          tag = (
+            'ethnic' ||
+              'perspective' ||
+              'light' ||
+              'bokeh' ||
+              'sepia' ||
+              // 'factory' ||
+              // 'world' ||
+              'microscope' ||
+              // 'nasa' ||
+              'tree,branch' ||
+              'blur' ||
+              'nature'
+          ),
+          currentPage = random(1, 100),
+          cache;
+      function getNewBatch() {
+        var result,
+            url = (
+              'http://api.flickr.com/services/rest/?format=json' +
+                '&sort=interestingness-desc' +
+                '&method=flickr.photos.search' +
+                '&tags=' + tag +
+                '&tag_mode=all' +
+                '&api_key=' + apiKey +
+                '&per_page=' + perPage +
+                '&page=' + currentPage);
+        var req = new XMLHttpRequest();
+        req.open('GET', url, false);
+        req.send(null);
+        if (req.status == 200) {
+          result = req.responseText;
+          result = result.substring(14, result.length - 1);
+          result = JSON.parse(result);
+          result = result.photos.photo;
+          result = result.filter(function(obj) {
+            var result,
+                url = (
+                  'http://api.flickr.com/services/rest/?format=json' +
+                    '&api_key=' + apiKey +
+                    '&method=flickr.photos.getSizes' +
+                    '&photo_id=' + obj.id
+                );
+            var req = new XMLHttpRequest();
+            req.open('GET', url, false);
+            req.send(null);
+            if (req.status == 200) {
+              result = req.responseText;
+              result = result.substring(14, result.length - 1);
+              result = JSON.parse(result);
+              result = result.sizes.size;
+              return result.some(function(size) {
+                var result = size.label === 'Large';
+                // console.log(result);
+                return result;
+              });
+              // console.log(result);
+            }
+            // return true;
+          });
+          result = result.map(function(obj) {
+            return 'http://farm' + obj.farm +
+              '.staticflickr.com/' + obj.server +
+              '/' + obj.id +
+              '_' + obj.secret +
+              '_b.jpg';
+          }); }
+        currentPage += 5;
+        cache = result;
+
+        cache.forEach(function(url) {
+          var pi = new Image();
+          pi.src = url;
+        });
+        console.log(cache.length);
+      }
+
+      return function() {
+        if ( ! cache || ! cache.length) {
+          getNewBatch();
+        }
+        return 'url("' + cache.pop() + '")';
+      };
+
+    } ()),
 
     ensureLength: function(string, length) {
       if (string.length > length) {
@@ -887,6 +897,7 @@ var pl = {debug: false};
 
     init: function() {
       this.context = this.canvas.getContext('2d');
+      this.init = ignore;
     },
 
     applyStyle: function(attributes, rect) {
@@ -1302,6 +1313,7 @@ var pl = {debug: false};
 
   // ---------------------------------------------------------------------------
 
+  // Attributes for canvasBrush should always include brushAttributes.canvas
   pl.painterFactory = {
     make: function(attributes) {
       var painter = new pl.Painter();
@@ -1416,6 +1428,11 @@ var pl = {debug: false};
     make: function(/*optional*/ option) {
       this.makeMake();
       return this.make(option);
+    },
+
+    makeSubfactory: function(args) {
+      var factory = new pl.StampFactory();
+      return factory;
     },
 
     getOptions: function() {
@@ -1576,9 +1593,10 @@ var pl = {debug: false};
     },
 
     make: function(seed) {
-      if (seed) {
-        SeedRandom.seed(seed);
-      }
+      var random = makeRandom(seed);
+      // if (seed) {
+      //   SeedRandom.seed(seed);
+      // }
       var sequences = [],
           largeCircleLimit = 2,
           allowAngleRotation = true || ! random(2),
@@ -1658,6 +1676,7 @@ var pl = {debug: false};
     stopped: false,
     init: function() {
       this.painter.init();
+      this.init = ignore;
     },
 
     step: function(seed) {
@@ -1682,13 +1701,13 @@ var pl = {debug: false};
             continue;
           }
           break;
-        }
-      }
+        }}
       if ( ! this.stopped) {
         setTimeout(this.loop.bind(this),
                    this.loopInterval * 1000);
       }
     },
+
     stop: function() {
       this.stopped = true;
     },
@@ -1711,4 +1730,4 @@ var pl = {debug: false};
       }
     }
   });
-}());
+} ());

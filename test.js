@@ -1,8 +1,11 @@
-/*global generator:true, composition:true, brush:true, pl, init, SeedRandom, describe, it, xit, expect, jasmine*/
+/*global generator:true, composition:true, brush:true, pl, init, SeedRandom, describe, xdescribe, it, xit, expect, jasmine*/
 
 var plt = {};
 
-SeedRandom.seed('test');
+// SeedRandom.seed('test');
+pl.util.getRandomPicture = function() {
+  return 'url("http://farm4.staticflickr.com/3110/2345360341_069598f072_b.jpg")';
+};
 
 // -----------------------------------------------------------------------------
 
@@ -415,7 +418,7 @@ describe("Compass", function() {
 
   // ---------------------------------------------------------------------------
 
-  it("shouldn't throw, or return false2", function() {
+  xit("shouldn't throw, or return false2", function() {
     painter.measure(fault_1316());
     expect(compass._objectRects)
       .toBeTruthy();
@@ -425,7 +428,7 @@ describe("Compass", function() {
 
 // -----------------------------------------------------------------------------
 
-describe("Painter", function() {
+xdescribe("Painter", function() {
   var result;
   var painter = pl.painterFactory.make(
     {brushAttributes: {canvas: document.createElement('canvas')}}
@@ -480,6 +483,7 @@ describe('color', function() {
 });
 
 describe('makeClass', function() {
+  /*jshint proto:true*/
   var parent = {p: 1};
   var Child = pl.util.makeClass({
     parent: parent,
@@ -506,5 +510,26 @@ describe('makeClass', function() {
     .toEqual(Child.prototype);
 });
 
+describe('SeedRandom', function() {
+  it('two generators starting with the same seed should return identical values',
+     function() {
+       var gen1 = new SeedRandom('test1'),
+           gen2 = new SeedRandom('test1'),
+           res1 = Array.apply(null, new Array(15))
+           .map(function() {
+             return gen1.random();
+           }),
+           res2 = Array.apply(null, new Array(15))
+           .map(function() {
+             return gen2.random();
+           }),
+       areEqual = res1.every(function(val, index) {
+         console.log(val + ' = ' + res2[index]);
+         return val === res2[index];
+       });
+       expect(areEqual)
+         .toBeTruthy();
+     });
+});
 // translatePoint
 // directionTranslate
