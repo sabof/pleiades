@@ -613,9 +613,9 @@ var pl = {debug: false};
     },
 
     updateSlaveBrush: function() {
-      this.slaveBrush._offset = this._offset;
-      this.slaveBrush.mask = this.mask;
-      this.slaveBrush.canvas = this.canvas;
+      // this.slaveBrush._offset = this._offset;
+      // this.slaveBrush.mask = this.mask;
+      // this.slaveBrush.canvas = this.canvas;
       this.slaveBrush.paper = this.paper;
     },
 
@@ -627,6 +627,10 @@ var pl = {debug: false};
     reset: function() {
       this.updateSlaveBrush();
       this.slaveBrush.reset();
+    },
+
+    setCanvas: function(canvas) {
+      this.slaveBrush.setCanvas(canvas);
     },
 
     polyline: function(points, attributes, commandObject) {
@@ -771,6 +775,10 @@ var pl = {debug: false};
   pl.CanvasBrush = pl.Brush.subclass({
     constructor: function() {
       this.canvas = null;
+    },
+
+    setCanvas: function(canvas) {
+      this.canvas = canvas;
     },
 
     init: function() {
@@ -993,12 +1001,6 @@ var pl = {debug: false};
       return newPoint;
     },
 
-    untranslatePoint: function(point) {
-      var x = Math.round((point[0] - this._offset[0])),
-          y = Math.round((point[1] - this._offset[1]));
-      return [x, y];
-    },
-
     line: function(length, direction, style, commandObject) {
       var oldPoint = this.point.slice(0);
       this.move(length, direction);
@@ -1090,6 +1092,9 @@ var pl = {debug: false};
     },
 
     drawComposition: function(composition) {
+      function isVisible(rect) {
+        return rectanglesOverlap(rect, windowTranslatedRect);
+      }
       var offset, mask,
           self = this,
           windowCenter = [
@@ -1123,11 +1128,13 @@ var pl = {debug: false};
                   ];
                 },
                 this));
-      var visible = this.compass._objectRects.filter(function(rect) {
-        return rectanglesOverlap(rect, windowTranslatedRect);
-      });
+
+      var someVisible = this.compass._objectRects.some(isVisible);
+
       if (pl.debug) {
-        visible.forEach(function(rect) {
+        this.compass._objectRects.filter(function(rect) {
+          return rectanglesOverlap(rect, windowTranslatedRect);
+        }).forEach(function(rect) {
           self.brush.rect(
             rect[0],
             rect[1],
@@ -1139,7 +1146,7 @@ var pl = {debug: false};
         });
       }
 
-      if (! visible.length) {
+      if (! someVisible) {
         if (pl.debug) {
           console.log('invisible');
         }

@@ -99,7 +99,8 @@ function init(type) {
                new pl.CanvasBrush()),
       compass = new pl.Compass();
   brush = new pl.LayerBrush({slaveBrush: brush});
-  brush.canvas = document.getElementById('pleiades-canvas');
+  brush.setCanvas(document.getElementById('pleiades-canvas'));
+  // return;
   brush.init();
   stampFactory.init();
   previewer = new pl.Previewer({
