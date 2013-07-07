@@ -1499,7 +1499,7 @@ var pl = {debug: false};
             this.random('direction'),
             extend({ 'stroke-width': this.random(1, 5) },
                    this.random([{ 'stroke-style' : 'dashed' },
-                           {}]))
+                                {}]))
           ]; }
       },
 
