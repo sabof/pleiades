@@ -188,7 +188,7 @@ plt.isStampValid = function(pattern) {
     }
   } else {
     throw new Error('The first member of a stamp should be a number or a string: ' +
-                   pattern);
+                    pattern);
   }
   return true;
 }.bind(plt);
@@ -388,11 +388,11 @@ describe("Compass", function() {
        compass.reset();
        compass.rect(0, 0, 5, 6);
        var outerRect = compass.getOuterRect();
-    expect(outerRect[0]).toEqual(0);
-    expect(outerRect[1]).toEqual(0);
-    expect(outerRect[2]).toEqual(5);
-    expect(outerRect[3]).toEqual(6);
-  });
+       expect(outerRect[0]).toEqual(0);
+       expect(outerRect[1]).toEqual(0);
+       expect(outerRect[2]).toEqual(5);
+       expect(outerRect[3]).toEqual(6);
+     });
 
   // ---------------------------------------------------------------------------
 
@@ -451,7 +451,6 @@ describe("Compass", function() {
     expect(compass._objectRects)
       .toBeTruthy();
   });
-
 });
 
 // -----------------------------------------------------------------------------
@@ -476,19 +475,18 @@ describe('Painter', function() {
 
   it('with a rotating a sequence should levave the point in the same place',
      function() {
-    var composition = [
-      [['rotate', true], ['move', 10, 'right']],
-      [['rect', 3, 3, {'fill' : '#aa0044'}]
-      ] ];
-    composition[0].push(generator._makeZoomer(composition[1]));
-    composition = [[4, composition[0]]];
-    plt.isSequenceValid(composition);
-    painter.reset();
-    painter.drawComposition(composition);
-    expect(painter.point[0]).toEqual(0);
-    expect(painter.point[1]).toEqual(0);
-  });
-
+       var composition = [
+         [['rotate', true], ['move', 10, 'right']],
+         [['rect', 3, 3, {'fill' : '#aa0044'}]
+         ] ];
+       composition[0].push(generator._makeZoomer(composition[1]));
+       composition = [[4, composition[0]]];
+       plt.isSequenceValid(composition);
+       painter.reset();
+       painter.drawComposition(composition);
+       expect(painter.point[0]).toEqual(0);
+       expect(painter.point[1]).toEqual(0);
+     });
 });
 
 // -----------------------------------------------------------------------------
@@ -504,7 +502,6 @@ describe("angleRotation",  function() {
 // -----------------------------------------------------------------------------
 
 describe('color', function() {
-  // it()
   it('should pass-throuh rgba')
     .expect(pl.util.color('rgba(53, 107, 11, 1)')
             .toString())
@@ -571,10 +568,9 @@ describe('SeedRandom', function() {
            .map(function() {
              return gen2.random();
            }),
-       areEqual = res1.every(function(val, index) {
-         console.log(val + ' = ' + res2[index]);
-         return val === res2[index];
-       });
+           areEqual = res1.every(function(val, index) {
+             return val === res2[index];
+           });
        expect(areEqual)
          .toBeTruthy();
      });
