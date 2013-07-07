@@ -44,7 +44,7 @@ window.requestAnimFrame = (function(){
   else
     window.onpageshow = window.onpagehide = window.onfocus = window.onblur = onchange;
 
-})();
+} ());
 
 // -----------------------------------------------------------------------------
 
@@ -310,7 +310,9 @@ var pl = {debug: false};
                  }))
         .toUpperCase();
     },
-    vary: function(intensity) {
+
+    vary: function(intensity, locRandom) {
+      locRandom = locRandom || random;
       intensity = intensity || 10;
       if (this.channels.some(isNaN)) {
         throw new Error('Some channels are NaN: ' +
@@ -319,7 +321,7 @@ var pl = {debug: false};
       var transparency = this.channels[3],
           colorChannels = this.channels.slice(0, 3);
       colorChannels = colorChannels.map(function(channel) {
-        var raw = channel + (random(intensity * 2) - intensity),
+        var raw = channel + (locRandom(intensity * 2) - intensity),
             normalized = Math.min(255, Math.max(0, raw));
         // console.log(raw);
         // console.log(normalized);
@@ -447,11 +449,12 @@ var pl = {debug: false};
         currentPage += 5;
         cache = result;
 
-        cache.forEach(function(url) {
-          var pi = new Image();
-          pi.src = url;
-        });
-        console.log(cache.length);
+        // cache.forEach(function(url) {
+        //   var pi = new Image();
+        //   pi.src = url;
+        // });
+
+        // console.log(cache.length);
       }
 
       return function() {
@@ -493,6 +496,10 @@ var pl = {debug: false};
   pl.ColorTheme = makeClass({
     init: function() {},
 
+    constructor: function() {
+      this.random = makeRandom();
+    },
+
     // Colors
 
     background: constantly('#ffff00'),
@@ -500,10 +507,10 @@ var pl = {debug: false};
     outline: constantly('#0000FF'),
     shadow: constantly('#ff0000'),
     gradient: function() {
-      var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
+      var oriColor = this.random(['#ff0000', '#00FFFF', '#FFFF00']);
       return [
-        color(oriColor).vary(100).toString(),
-        color(oriColor).vary(100).toString()
+        color(oriColor).vary(100, this.random).toString(),
+        color(oriColor).vary(100, this.random).toString()
       ];
     },
 
@@ -545,7 +552,7 @@ var pl = {debug: false};
       return {
         'stroke': this.outline(),
         'fill': color(this.highlight())
-          .alpha(random())
+          .alpha(this.random())
           .toString()
       };
     },
@@ -553,10 +560,10 @@ var pl = {debug: false};
     ambientRect: function() {
       return {
         'stroke': color(this.outline())
-          .alpha(random() * 0.5 + 0.1)
+          .alpha(this.random() * 0.5 + 0.1)
           .toString(),
         'fill': color(this.highlight())
-          .alpha(random() / 10)
+          .alpha(this.random() / 10)
           .toString()
       };
     }
@@ -606,15 +613,15 @@ var pl = {debug: false};
             highlight: randomColor,
             gradient: function() {
               var oriColor = randomColor();
-              return [color(oriColor).vary(50).toString(),
-                      color(oriColor).vary(50).toString()];
+              return [color(oriColor).vary(50, this.random).toString(),
+                      color(oriColor).vary(50, this.random).toString()];
             },
 
             highlightRect: function() {
               return {
                 'stroke': this.outline(),
                 'fill': color(this.highlight())
-                  .alpha(0.5 + random() * 0.5)
+                  .alpha(0.5 + this.random() * 0.5)
                   .toString()
               };
             },
@@ -640,18 +647,19 @@ var pl = {debug: false};
             'stroke': color("#E7E2C8")
               .alpha(0.5).toString()
           }),
+
           highlightRect: function() {
             return {
               'stroke': this.outline(),
               'fill': color(this.highlight())
-                .alpha(random() * 0.4 + 0.1).toString()
+                .alpha(this.random() * 0.4 + 0.1).toString()
             };
           },
 
           gradient: function() {
-            var oriColor = random(['#ff0000', '#00FFFF', '#FFFF00']);
-            return [color(oriColor).vary(100).toString(),
-                    color(oriColor).vary(100).toString()];
+            var oriColor = this.random(['#ff0000', '#00FFFF', '#FFFF00']);
+            return [color(oriColor).vary(100, this.random).toString(),
+                    color(oriColor).vary(100, this.random).toString()];
           }
         }),
 
