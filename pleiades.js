@@ -105,7 +105,7 @@ var pl = {debug: false};
   var getRandomPicture = (function() {
     var perPage = 10,
         apiKey = 'ac6d4ba1e8c5ab491d534b480c830c37',
-        tag = 'factory' || 'world' || 'microscope' || 'nasa' || 'tree,branch' || 'blur,focus' || 'nature',
+        tag = 'sepia' || 'factory' || 'world' || 'microscope' || 'nasa' || 'tree,branch' || 'blur,focus' || 'nature',
         currentPage = random(1, 100),
         cache;
     function getNewBatch() {
