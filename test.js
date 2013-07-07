@@ -383,7 +383,8 @@ describe("Compass", function() {
 
   // ---------------------------------------------------------------------------
 
-  it('When a rectangle is drawn the boundaries shoudld be adjusted', function() {
+  it('When a rectangle is drawn the boundaries shoudld be adjusted',
+     function() {
        compass.reset();
        compass.rect(0, 0, 5, 6);
        var outerRect = compass.getOuterRect();
@@ -473,7 +474,8 @@ describe('Painter', function() {
 
   // ---------------------------------------------------------------------------
 
-  it('with a rotating a sequence should levave the point in the same place', function() {
+  it('with a rotating a sequence should levave the point in the same place',
+     function() {
     var composition = [
       [['rotate', true], ['move', 10, 'right']],
       [['rect', 3, 3, {'fill' : '#aa0044'}]
@@ -499,6 +501,8 @@ describe("angleRotation",  function() {
   });
 });
 
+// -----------------------------------------------------------------------------
+
 describe('color', function() {
   // it()
   it('should pass-throuh rgba')
@@ -521,6 +525,8 @@ describe('color', function() {
             .toString())
     .toEqual('rgba(53, 107, 11, 0.5)');
 });
+
+// -----------------------------------------------------------------------------
 
 describe('makeClass', function() {
   /*jshint proto:true*/
@@ -550,8 +556,10 @@ describe('makeClass', function() {
     .toEqual(Child.prototype);
 });
 
+// -----------------------------------------------------------------------------
+
 describe('SeedRandom', function() {
-  it('two generators starting with the same seed should return identical values',
+  it('two generators with the same seed should return identical values',
      function() {
        var gen1 = new SeedRandom('test1'),
            gen2 = new SeedRandom('test1'),
