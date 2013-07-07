@@ -331,6 +331,7 @@ describe('sequenceFactory', function() {
   var colorThemeFactory = new pl.ColorThemeFactory(),
       factory = new pl.StampFactory({colorThemeFactory: colorThemeFactory}),
       recipes = factory.getOptions();
+  factory.init();
   recipes.forEach(function(recipe) {
     it('should produce a valid \"' + recipe + '\" stamp')
       .expect(plt.isStampValid(factory.make(recipe)))

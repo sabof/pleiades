@@ -52,8 +52,8 @@ var pl = {debug: false};
 
 (function () {
   "use strict";
-  function makeRandom() {
-    var sRandom = new SeedRandom();
+  function makeRandom(seed) {
+    var sRandom = new SeedRandom(seed);
     function random(min, max) {
       if (min instanceof Array) {
         return min[random(min.length)];
@@ -463,12 +463,12 @@ var pl = {debug: false};
 
     } ()),
 
-    ensureLength: function(string, length) {
+    ensureLength: function(string, length, padSymbol) {
       if (string.length > length) {
         return string.substr(0, length);
       }
       while (string.length < length) {
-        string = '0' + string;
+        string = padSymbol || '0' + string;
       }
       return string;
     },
@@ -480,12 +480,6 @@ var pl = {debug: false};
           .toUpperCase(),
         4);
     },
-
-    // objectsEqual: function(a, b) {
-    //   var aKeys = Object.keys(a);
-    //   var bKeys = Object.keys(a);
-    //   return true;
-    // },
 
     rangesOverlap: rangesOverlap,
     rotatePoint: rotatePoint,
@@ -1355,6 +1349,8 @@ var pl = {debug: false};
           compositionFactory = new pl.CompositionFactory(
             {colorThemeFactory: colorThemeFactory,
              stampFactory: stampFactory});
+      stampFactory.init();
+      compositionFactory.init();
       return compositionFactory;
     }
   };
@@ -1362,6 +1358,10 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   pl.StampFactory = makeClass({
+    constructor: function() {
+      this.random = makeRandom();
+    },
+
     reset: function() {
       var iterator = makeLooper(rotateArray(['dotted', 'none', 'dashed', 'none'],
                                             random(4)));
@@ -1391,6 +1391,10 @@ var pl = {debug: false};
       this.init = ignore;
     },
 
+    seed: function(seed) {
+      this.random = makeRandom(seed);
+    },
+
     makeMake: function() {
       var self = this,
           wheel = [],
@@ -1403,17 +1407,15 @@ var pl = {debug: false};
           }
           for (var i = 0; i < probability; i++) {
             wheel.push(recipeKey);
-          }
-        });
+          }});
       wheelLength = wheel.length;
       this.make = function(option) {
-        option = option || wheel[random(wheelLength)];
+        option = option || wheel[this.random(wheelLength)];
         var object = this.recipes[option],
             result = object.func.call(this),
             styles = [],
             self = this;
-        if (this.colorTheme &&
-            this.colorTheme[option]) {
+        if (this.colorTheme && this.colorTheme[option]) {
           if (typeof result[0] === 'string') {
             styles = [result[result.length - 1]];
           } else if (typeof result[0] === 'number') {
@@ -1423,8 +1425,7 @@ var pl = {debug: false};
           }
           styles.forEach(function(style) {
             extend(style, self.colorTheme[option]());
-          });
-        }
+          }); }
         self.lastUsed = object;
         return result;
       };
@@ -1449,7 +1450,7 @@ var pl = {debug: false};
         probability: 2000,
         maxLength: 0,
         func: function() {
-          return ['rotate', !! random(2)];
+          return ['rotate', !! this.random(2)];
         }
       },
 
@@ -1457,7 +1458,7 @@ var pl = {debug: false};
         probability: 0,
         maxLength: 0,
         func: function() {
-          return ['rotateAngle', random() * 2 * Math.PI];
+          return ['rotateAngle', this.random() * 2 * Math.PI];
         }
       },
 
@@ -1465,7 +1466,7 @@ var pl = {debug: false};
         probability: 0,
         maxLength: 0,
         func: function() {
-          return ['reflect', !! random(2)];
+          return ['reflect', !! this.random(2)];
         }
       },
 
@@ -1475,8 +1476,8 @@ var pl = {debug: false};
         func: function() {
           return [
             'move',
-            random(5, 10),
-            random('direction')
+            this.random(5, 10),
+            this.random('direction')
           ]; }
       },
 
@@ -1486,10 +1487,10 @@ var pl = {debug: false};
         func: function() {
           return [
             'line',
-            random(5, 10),
-            random('direction'),
-            extend({ 'stroke-width': random(1, 5) },
-                   random([{ 'stroke-style' : 'dashed' },
+            this.random(5, 10),
+            this.random('direction'),
+            extend({ 'stroke-width': this.random(1, 5) },
+                   this.random([{ 'stroke-style' : 'dashed' },
                            {}]))
           ]; }
       },
@@ -1501,8 +1502,8 @@ var pl = {debug: false};
         func: function() {
           return [
             'circle',
-            random(1, 2),
-            { 'stroke-width': random(1, 3) } ]; }
+            this.random(1, 2),
+            { 'stroke-width': this.random(1, 3) } ]; }
       },
 
       ambientRect: {
@@ -1511,17 +1512,17 @@ var pl = {debug: false};
         func: function() {
           return [
             'rect',
-            random(-60, 60),
-            random(-60, 60),
-            { 'stroke-width': random(3) } ]; }
+            this.random(-60, 60),
+            this.random(-60, 60),
+            { 'stroke-width': this.random(3) } ]; }
       },
 
       gradStrip: {
         probability: 100,
         maxLength: 1,
         func: function() {
-          var dimensions = [random(1, 3), random(3, 20)];
-          if (random(2)) {
+          var dimensions = [this.random(1, 3), this.random(3, 20)];
+          if (this.random(2)) {
             dimensions = rotateArray(dimensions);
           }
           return ['rect',
@@ -1534,7 +1535,7 @@ var pl = {debug: false};
         probability: 100,
         maxLength: 1,
         func: function() {
-          return ['rect', random(-10, 10), random(-10, 10),
+          return ['rect', this.random(-10, 10), this.random(-10, 10),
                   { 'stroke-width': 2 }]; }
       },
 
@@ -1543,22 +1544,22 @@ var pl = {debug: false};
         func: function() {
           var blank, self = this;
           function makeMove(direction) {
-            var type = blank ? 'line' : random(
+            var type = blank ? 'line' : self.random(
               ['line', 'move']
             );
             if (type === 'move') blank = true;
             return [
               type,
-              random(3, 15),
+              self.random(3, 15),
               direction,
-              { 'stroke-width': random(1, 5) }];
+              { 'stroke-width': self.random(1, 5) }];
           }
 
           var up = makeMove('forward'),
               left = makeMove('left'),
               right = left.slice(0);
           right[2] = 'right';
-          return [ random(1, 4),
+          return [ this.random(1, 4),
                    [left, up, right, up] ]; }
       }
     }
@@ -1570,6 +1571,7 @@ var pl = {debug: false};
     constructor: function(properties) {
       this.depth = 5;
       this.sequenceLength = 15;
+      this.random = makeRandom();
     },
 
     maybeRange: function(thing) {
@@ -1597,11 +1599,17 @@ var pl = {debug: false};
       };
     },
 
+    init: function() {},
+
+    seed: function(seed) {
+      this.random = makeRandom(seed);
+    },
+
     make: function(seed) {
-      var random = makeRandom(seed);
-      // if (seed) {
-      //   SeedRandom.seed(seed);
-      // }
+      if (seed) {
+        this.random = makeRandom(seed);
+      }
+      var random = this.random;
       var sequences = [],
           largeCircleLimit = 2,
           allowAngleRotation = true || ! random(2),
