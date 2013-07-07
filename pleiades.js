@@ -104,8 +104,21 @@ var pl = {debug: false};
 
   var getRandomPicture = (function() {
     var perPage = 10,
-        apiKey = 'ac6d4ba1e8c5ab491d534b480c830c37',
-        tag = 'sepia' || 'factory' || 'world' || 'microscope' || 'nasa' || 'tree,branch' || 'blur,focus' || 'nature',
+        apiKey = '659840a613ce7186f3f6538bb740f563',
+        tag = (
+          'ethnic' ||
+            'perspective' ||
+            'light' ||
+            'bokeh' ||
+            'sepia' ||
+            // 'factory' ||
+            // 'world' ||
+            'microscope' ||
+            // 'nasa' ||
+            'tree,branch' ||
+            'blur' ||
+            'nature'
+        ),
         currentPage = random(1, 100),
         cache;
     function getNewBatch() {
@@ -1562,7 +1575,10 @@ var pl = {debug: false};
       };
     },
 
-    make: function() {
+    make: function(seed) {
+      if (seed) {
+        SeedRandom.seed(seed);
+      }
       var sequences = [],
           largeCircleLimit = 2,
           allowAngleRotation = true || ! random(2),
@@ -1651,9 +1667,8 @@ var pl = {debug: false};
       } else {
         this.ticket = pl.util.makeTicket();
       }
-      SeedRandom.seed(this.ticket);
 
-      this.composition = this.compositionFactory.make();
+      this.composition = this.compositionFactory.make(this.ticket);
       var result = this.painter.drawComposition(this.composition);
       this.afterStepHook();
       return result;
