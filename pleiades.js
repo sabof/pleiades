@@ -87,7 +87,7 @@ var pl = {debug: false};
     return random;
   }
 
-  var random = makeRandom();
+  // var random = makeRandom();
 
   var rotateArray = function(array, ammount) {
     if (ammount === undefined) {
@@ -305,14 +305,14 @@ var pl = {debug: false};
                values.slice(0, 3).map(
                  function(value) {
                    return pl.util.ensureLength(
-                     value.toString(16),
+                     value
+                       .toString(16)
+                       .toUpperCase(),
                      2);
-                 }))
-        .toUpperCase();
+                 }));
     },
 
-    vary: function(intensity, locRandom) {
-      locRandom = locRandom || random;
+    vary: function(intensity, random) {
       intensity = intensity || 10;
       if (this.channels.some(isNaN)) {
         throw new Error('Some channels are NaN: ' +
@@ -321,7 +321,7 @@ var pl = {debug: false};
       var transparency = this.channels[3],
           colorChannels = this.channels.slice(0, 3);
       colorChannels = colorChannels.map(function(channel) {
-        var raw = channel + (locRandom(intensity * 2) - intensity),
+        var raw = channel + (random(intensity * 2) - intensity),
             normalized = Math.min(255, Math.max(0, raw));
         // console.log(raw);
         // console.log(normalized);
@@ -364,7 +364,7 @@ var pl = {debug: false};
   pl.util = {
     // Assume it's just max/array with one argument.
     // Inclusive, exclusive
-    random: random,
+    // random: random,
 
     makeClass: makeClass,
 
@@ -377,6 +377,7 @@ var pl = {debug: false};
     constantly: constantly,
 
     getRandomPicture: (function() {
+      var random = makeRandom(); //FIXME
       var perPage = 10,
           apiKey = '659840a613ce7186f3f6538bb740f563',
           tag = (
@@ -572,13 +573,26 @@ var pl = {debug: false};
   // ---------------------------------------------------------------------------
 
   pl.ColorThemeFactory = makeClass({
+    constructor: function() {
+      this.random = makeRandom();
+    },
+
+    seed: function(seed) {
+      this.random = makeRandom(seed);
+    },
+
     make: function(themeName) {
       var proto = this.themes[
-        themeName || random({bluePrint: 0,
-                             blackNeon: 0, // 3
-                             papyrus: 6})
+        themeName || this.random({
+          bluePrint: 0,
+          blackNeon: 0, // 3
+          papyrus: 6
+        })
       ];
       var theme = Object.create(proto);
+      theme.random = makeRandom(
+        this.random.toString()
+      );
       theme.init();
       // Doesn't look at the chain
       Object.keys(proto)
@@ -594,46 +608,42 @@ var pl = {debug: false};
     // -------------------------------------------------------------------------
 
     themes: {
-      papyrus: (function() {
+      papyrus: extend(new pl.ColorTheme(), {
+        randomColor: function() {
+          return color(this.random(['#0000FF', '#CC0000', '#000000']))
+            .vary(150, this.random).toString();
+        },
+        // Colors
+        background: getRandomPicture,
+        // '#C7C289',
+        outline: '#000000',
+        shadow: function() {
+          return this.randomColor();
+        },
+        highlight: function() {
+          return this.randomColor();
+        },
+        gradient: function() {
+          var oriColor = this.randomColor();
+          return [color(oriColor).vary(50, this.random).toString(),
+                  color(oriColor).vary(50, this.random).toString()];
+        },
 
-        function randomColor() {
-          return color(random(['#0000FF', '#CC0000', '#000000']))
-            .vary(150).toString();
-        }
+        // Styles
+        highlightRect: function() {
+          return {
+            'stroke': this.outline(),
+            'fill': color(this.highlight())
+              .alpha(0.5 + this.random() * 0.5)
+              .toString()
+          };
+        },
 
-        return extend(
-          new pl.ColorTheme(), {
-            // Colors
-            background: getRandomPicture,
-            // '#C7C289',
-            outline: '#000000',
-            shadow: function() {
-              return randomColor();
-            },
-            highlight: randomColor,
-            gradient: function() {
-              var oriColor = randomColor();
-              return [color(oriColor).vary(50, this.random).toString(),
-                      color(oriColor).vary(50, this.random).toString()];
-            },
+        largeCircle: constantly(
+          { 'stroke': "#FFFFFF" }
+        )
 
-            highlightRect: function() {
-              return {
-                'stroke': this.outline(),
-                'fill': color(this.highlight())
-                  .alpha(0.5 + this.random() * 0.5)
-                  .toString()
-              };
-            },
-
-            // Styles
-            largeCircle: constantly(
-              { 'stroke': "#FFFFFF" }
-            )
-
-          });
-
-      } ()),
+      }),
 
       // -----------------------------------------------------------------------
 
@@ -723,7 +733,7 @@ var pl = {debug: false};
   pl.LayerBrush = pl.Brush.subclass({
     constructor: function() {
       this.hashmap = [];
-      this.hashmaps =[];
+      // this.hashmaps =[];
     },
 
     init: function() {
@@ -732,10 +742,10 @@ var pl = {debug: false};
 
     reset: function() {
       // console.log('reset');
-      this.hashmaps.push(this.hashmap);
-      if (this.hashmaps.length > 1) {
-        this.hashmaps.shift();
-      }
+      // this.hashmaps.push(this.hashmap);
+      // if (this.hashmaps.length > 1) {
+      //   this.hashmaps.shift();
+      // }
       this.hashmap = [];
       // console.log(this.hashmaps.length);
       this.slaveBrush.reset();
@@ -787,18 +797,16 @@ var pl = {debug: false};
 
     finalize: function() {
       var self = this;
-      this.hashmaps.concat([this.hashmap])
-        .forEach(function(map) {
-          map.forEach(function(elem) {
-            if (elem[1] === 'polyline') {
-              elem.slice(3).forEach(function(points) {
-                self.slaveBrush.polyline(points, elem[2]);
-              });
-            } else if (elem[1] === 'circle') {
-              elem.slice(3).forEach(function(spec) {
-                self.slaveBrush.circle(spec[0], spec[1], elem[2]);
-              }); }});
-        });
+      this.hashmap.forEach(function(elem) {
+        if (elem[1] === 'polyline') {
+          elem.slice(3).forEach(function(points) {
+            self.slaveBrush.polyline(points, elem[2]);
+          });
+        } else if (elem[1] === 'circle') {
+          elem.slice(3).forEach(function(spec) {
+            self.slaveBrush.circle(spec[0], spec[1], elem[2]);
+          });
+        }});
     },
 
     setOffset: function(offset) {
@@ -990,12 +998,11 @@ var pl = {debug: false};
 
   pl.Compass = pl.Brush.subclass({
     constructor: function() {
-      this._objectRects = [];
-      this._outerBoundaries = undefined;
+      this.reset();
     },
     reset: function() {
-      this._outerBoundaries = undefined;
       this._objectRects = [];
+      this._outerBoundaries = null;
     },
 
     trackIt: function(rect) {
@@ -1371,9 +1378,9 @@ var pl = {debug: false};
     },
 
     reset: function() {
-      var iterator = makeLooper(rotateArray(['dotted', 'none', 'dashed', 'none'],
-                                            random(4)));
-
+      var iterator = makeLooper(
+        rotateArray(['dotted', 'none', 'dashed', 'none'],
+                    this.random(4)));
       this.recipes.largeCircle = {
         probability: 20,
         maxLength: 1,
@@ -1381,8 +1388,8 @@ var pl = {debug: false};
           var dashStyle = iterator();
           var circle = [
             'circle',
-            random(10, 300),
-            { 'stroke-width': (dashStyle === 'none') ? 1 : 2,
+            this.random(10, 300), {
+              'stroke-width': (dashStyle === 'none') ? 1 : 2,
               'stroke-style' : dashStyle
             }
           ];
@@ -1390,7 +1397,6 @@ var pl = {debug: false};
           return circle;
         }
       };
-
       this.makeMake();
     },
 
@@ -1432,7 +1438,7 @@ var pl = {debug: false};
             });
           }
           styles.forEach(function(style) {
-            extend(style, self.colorTheme[option]());
+            extend(style, self.colorTheme[option].call(self.colorTheme));
           }); }
         self.lastUsed = object;
         return result;
@@ -1582,20 +1588,8 @@ var pl = {debug: false};
       this.random = makeRandom();
     },
 
-    maybeRange: function(thing) {
-      if (thing instanceof Array) {
-        return random(thing);
-      } else {
-        return thing;
-      }},
-
-    maybeCall: function(thing) {
-      return (thing instanceof Function) ?
-        thing() :
-        thing; },
-
     _makeZoomer: function(sequence, repeat) {
-      repeat = repeat || random(1, 3) * 2;
+      repeat = repeat || this.random(1, 3) * 2;
       return function() {
         var originalZoom = this.zoom;
         for (var i = 0; i < repeat; i++) {
@@ -1615,7 +1609,9 @@ var pl = {debug: false};
 
     make: function(seed) {
       if (seed) {
-        this.random = makeRandom(seed);
+        this.seed(seed);
+        this.stampFactory.seed(seed);
+        this.colorThemeFactory.seed(seed);
       }
       var random = this.random;
       var sequences = [],

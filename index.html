@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-gb" lang="en-gb" >
-    <head>
-        <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-        <meta name="viewport" content="width=device-width" />
-        <title>Pleiades</title>
-        <style type="text/css">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width" />
+    <title>Pleiades</title>
+    <style type="text/css">
 html {
   background: #C7C289;
   background-size: cover;
@@ -42,17 +42,15 @@ body {
   text-shadow: none;
   background: white;
 }
-        </style>
-    </head>
-    <body>
-      <canvas id="pleiades-canvas"></canvas>
-      <input id="ticket" type="text" size="4"/>
-      <script src="lib/raphael.js"></script>
-      <script src="lib/seedrandom.js"></script>
-      <script src="pleiades.js"></script>
-
-<script>
-var generator, composition, ticket, brush, stampFactory;
+    </style>
+  </head>
+  <body>
+    <canvas id="pleiades-canvas"></canvas>
+    <input id="ticket" type="text" size="4" />
+    <script src="lib/raphael.js"></script>
+    <script src="lib/seedrandom.js"></script>
+    <script src="pleiades.js"></script>
+    <script>
 // pl.debug = true;
 
 function getURLParameter(name) {
@@ -85,14 +83,14 @@ function initUI() {
       var keyCode = e.keyCode || e.which;
       if (keyCode === 13) {
         var value = this.value.trim();
-        if (value.length === 4 && value !== ticket) {
-          ticket = value;
+        if (value.length === 4 && value !== previewer.ticket) {
+          previewer.ticke = value;
           previewer.step(value);
-        }}
-    });
+        }}});
 }
 
 var previewer;
+
 function init(type) {
   initUI();
   var colorThemeFactory = new pl.ColorThemeFactory(),
@@ -123,12 +121,11 @@ function init(type) {
       document.getElementById('ticket').value = previewer.ticket;
     },
     compositionFactory: new pl.CompositionFactory({
-      depth: 5,
+      depth: 3,
       sequenceLength: 15,
       stampFactory: stampFactory,
       colorThemeFactory: colorThemeFactory
-    })
-  });
+    }) });
   previewer.start(type === undefined ? 'loop' : type);
 }
 
@@ -152,6 +149,6 @@ if (getURLParameter('ticket')) {
 // previewer.composition = [['rect', 10, 10, {fill: 'black'}]];
 // previewer.composition = [['line', 1, 'right', {fill: 'black'}]];
 
-</script>
-    </body>
+    </script>
+  </body>
 </html>
