@@ -614,8 +614,7 @@ var pl = {debug: false};
             .vary(150, this.random).toString();
         },
         // Colors
-        background: getRandomPicture,
-        // '#C7C289',
+        background: '#C7C289',
         outline: '#000000',
         shadow: function() {
           return this.randomColor();
